@@ -1,15 +1,23 @@
 name: Roman Urdu test APK
 
 on:
-  push:
-    branches: [codex/roman-urdu]
   workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'User approved running the Roman Urdu tests'
+        type: boolean
+        default: false
+      build_debug_apk:
+        description: 'User approved test completion and building a Debug APK'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: inputs.run_tests || inputs.build_debug_apk
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -24,10 +32,13 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
       - name: Test Roman Urdu conversion and editor integration
+        if: inputs.run_tests
         run: ./gradlew :app:testDebugUnitTest --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*'
       - name: Build test APK
+        if: inputs.build_debug_apk
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
+        if: inputs.build_debug_apk
         with:
           name: MeraAiKeyboard-RomanUrdu
           path: app/build/outputs/apk/debug/*.apk
