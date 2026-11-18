@@ -24,9 +24,7 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
       - name: Test Roman Urdu conversion and editor integration
-        run: |
-          ./gradlew :app:tasks --all
-          ./gradlew :app:testDebugUnitTest --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*'
+        run: ./gradlew :app:testDebugUnitTest --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*'
       - name: Build test APK
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
