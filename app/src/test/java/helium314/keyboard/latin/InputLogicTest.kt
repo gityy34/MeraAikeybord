@@ -158,7 +158,7 @@ class InputLogicTest {
 
     private fun switchToRomanUrdu() {
         val subtype = SubtypeSettings.getResourceSubtypesForLocale("ur_PK".constructLocale())
-            .single { it.getExtraValueOf("CombiningRules") == "roman_urdu" }
+            .first { it.getExtraValueOf("CombiningRules") == "roman_urdu" }
         latinIME.switchToSubtype(subtype)
     }
 
