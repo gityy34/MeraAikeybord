@@ -1,0 +1,37 @@
+name: Roman Urdu test APK
+
+on:
+  push:
+    branches: [codex/roman-urdu]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test Roman Urdu conversion and editor integration
+        run: ./gradlew testRunTestsUnitTest --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*'
+      - name: Build test APK
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeraAiKeyboard-RomanUrdu
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roman-urdu-test-reports
+          path: app/build/reports/tests/

@@ -156,6 +156,47 @@ class InputLogicTest {
         assertEquals(8, cursor)
     }
 
+    private fun switchToRomanUrdu() {
+        val subtype = SubtypeSettings.getResourceSubtypesForLocale("ur_PK".constructLocale())
+            .single { it.getExtraValueOf("CombiningRules") == "roman_urdu" }
+        latinIME.switchToSubtype(subtype)
+    }
+
+    private fun typeRomanUrdu(value: String) {
+        value.forEach {
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(it.code))
+            handleMessages()
+            checkConnectionConsistency()
+        }
+    }
+
+    @Test fun romanUrduSentence() {
+        switchToRomanUrdu()
+        typeRomanUrdu("aap kaise hain ")
+        assertEquals("آپ کیسے ہیں ", text)
+    }
+
+    @Test fun romanUrduBackspaceDoesNotDeleteEarlierText() {
+        setText("پہلے ")
+        switchToRomanUrdu()
+        typeRomanUrdu("sh")
+        assertEquals("پہلے ش", text)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("پہلے س", text)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("پہلے ", text)
+        typeRomanUrdu("aap.")
+        assertEquals("پہلے آپ.", text)
+    }
+
+    @Test fun romanUrduSwitchingLanguageFinishesComposition() {
+        switchToRomanUrdu()
+        typeRomanUrdu("aap")
+        latinIME.switchToSubtype(SubtypeSettings.getResourceSubtypesForLocale(Locale.US).first())
+        chainInput(" hello")
+        assertEquals("آپ hello", text)
+    }
+
     @Test fun combineHangul() {
         val ko = SubtypeSettings.getResourceSubtypesForLocale("ko".constructLocale()).first()
         latinIME.switchToSubtype(ko)
