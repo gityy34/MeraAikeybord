@@ -1,6 +1,7 @@
 # Offline Roman Urdu: staged implementation
 
-**Phase 1 is tested; phase 2 below is implemented but awaits testing approval.**
+**Phase 1 passed. Phase 2 compiled, but one of 42 tests failed; the source fix
+awaits new testing approval.**
 Do not install/release a new build on the strength of earlier test results.
 No APK build is currently authorized.
 
@@ -47,9 +48,10 @@ implemented. No new user corrections are persisted in this stage.
 including app/test Kotlin and Java compilation, at commit d329fb8e. That revision
 had not connected the new engine to the IME.
 
-The subsequent adapter, manual/automatic mode selection, actual suggestion picks,
-privacy gates and related shared-component changes have **not been compiled or
-tested yet**. Their tests are written and await MODE A approval. No emulator or
+The subsequent adapter/IME revision compiled and passed 41 of 42 targeted tests.
+The password literal-input test failed. Its source fix and expanded tests have
+**not been compiled or retested** and await MODE A approval. See the
+[phase-2 report](docs/ROMAN_URDU_PHASE2_TEST_REPORT.md). No emulator or
 physical-device UI, accessibility, installation, battery, memory, or latency
 validation has been performed for this revision.
 

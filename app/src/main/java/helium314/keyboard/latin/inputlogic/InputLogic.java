@@ -99,6 +99,8 @@ public final class InputLogic {
     // TODO : make all these fields private as soon as possible.
     // Current space state of the input method. This can be any of the above constants.
     private int mSpaceState;
+    // Keep subtype privacy policy even when a restricted editor disables composition.
+    private volatile boolean mRomanUrduInputMode;
     // Never null
     public SuggestedWords mSuggestedWords = SuggestedWords.getEmptyInstance();
     public Suggest mSuggest; // non-final for active gesture data gathering, revert when data gathering phase is done (end of 2026 latest)
@@ -168,8 +170,14 @@ public final class InputLogic {
             // The timestamp at which it is captured is not accurate but close enough.
             StatsUtils.onWordCommitUserTyped(mWordComposer.getTypedWord(), mWordComposer.isBatchMode());
         }
-        mWordComposer.restartCombining(combiningSpec);
-        if (RomanUrduAdapter.isRoman(combiningSpec)) RomanUrduAdapter.preload(mLatinIME);
+        mRomanUrduInputMode = RomanUrduAdapter.isRoman(combiningSpec);
+        // Password/no-suggestion fields reset composition on selection updates. They must
+        // use direct literal commits, never a combiner retaining an unfinished word.
+        final boolean romanCompositionAllowed = !mRomanUrduInputMode
+                || (romanUrduFieldAllowed(settingsValues) && settingsValues.needsToLookupSuggestions());
+        final String activeCombiningSpec = romanCompositionAllowed ? combiningSpec : "";
+        mWordComposer.restartCombining(activeCombiningSpec);
+        if (RomanUrduAdapter.isRoman(activeCombiningSpec)) RomanUrduAdapter.preload(mLatinIME);
         resetComposingState(true /* alsoResetLastComposedWord */);
         mDeleteCount = 0;
         mSpaceState = SpaceState.NONE;
@@ -2508,7 +2516,7 @@ public final class InputLogic {
     }
 
     private boolean isRomanUrdu() {
-        return RomanUrduAdapter.isRoman(mWordComposer.getCombiningSpec());
+        return mRomanUrduInputMode;
     }
 
     public boolean shouldAcceptSuggestions(SuggestedWords words) {

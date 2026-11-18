@@ -65,7 +65,7 @@ object RomanUrduAdapter {
 
     @JvmStatic fun suggestions(context: Context, typed: String, snapshot: TextAtCursor?, sequence: Int,
                                allowed: Boolean): RomanUrduSuggestedWords {
-        val surrounding = surrounding(typed, snapshot)
+        val surrounding = if (allowed) surrounding(typed, snapshot) else null
         val choices = if (allowed && surrounding != null)
             load(context)?.suggest(typed, surrounding.first, surrounding.second)?.choices.orEmpty()
         else emptyList()

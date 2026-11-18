@@ -5,7 +5,9 @@ APK builds: **not authorized**. No external dataset has been imported.
 
 Current status: phase 1 passed 26 approved CI tests and Android Kotlin/Java
 compilation at d329fb8e; see `ROMAN_URDU_PHASE1_TEST_REPORT.md`. Phase-2 integration
-is implemented and source-reviewed but awaits new testing approval. Earlier
+compiled at cdc87d6e and passed 41 of 42 tests. A password-input failure was fixed
+in source; that fix awaits fresh approval and validation. See
+`ROMAN_URDU_PHASE2_TEST_REPORT.md`. Earlier
 baseline observations below describe the pre-integration revision.
 
 ## Baseline and root causes
@@ -89,7 +91,7 @@ IME input, suggestions, English, layouts, clipboard, emoji or themes was modifie
 This stage is not the complete feature and must not be described as working in
 the app until integration and relevant tests actually pass.
 
-### Phase 2 — IME integration (implemented; compilation and tests NOT RUN)
+### Phase 2 — IME integration (compiled; 41/42 passed; password fix NOT RETESTED)
 
 Shared changes were explained before implementation. They add Roman-only
 checks in `InputLogic.getSuggestedWords` and suggestion picks;

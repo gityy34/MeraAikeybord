@@ -246,11 +246,40 @@ class InputLogicTest {
     }
 
     @Test fun romanUrduPasswordFieldRemainsLiteral() {
-        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        for (automatic in listOf(false, true)) {
+            currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText("")
+            switchToRomanUrdu(automatic)
+            var expected = ""
+            for (character in "thik ") {
+                typeRomanUrdu(character.toString())
+                expected += character
+                assertEquals(expected, text)
+                assertEquals("", composer.typedWord)
+            }
+            assertEquals("", lastAddedWord)
+        }
+    }
+
+    @Test fun romanUrduVisiblePasswordAlsoUsesLiteralCommits() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        setText("")
+        switchToRomanUrdu(true)
+        typeRomanUrdu("thik")
+        assertEquals("thik", text)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("thi", text)
+        assertEquals("", composer.typedWord)
+        assertEquals("", lastAddedWord)
+    }
+
+    @Test fun romanUrduNoSuggestionFieldDoesNotLoseCharacters() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         setText("")
         switchToRomanUrdu(true)
         typeRomanUrdu("thik ")
         assertEquals("thik ", text)
+        assertEquals("", composer.typedWord)
         assertEquals("", lastAddedWord)
     }
 

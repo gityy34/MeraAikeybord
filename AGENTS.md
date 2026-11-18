@@ -143,7 +143,10 @@ See `docs/ROMAN_URDU_IMPROVEMENT.md` for research, source licensing, the baselin
 planned shared-component changes and rollback, and phase-by-phase acceptance.
 The owner approved phase-1 tests: 26 targeted CI tests passed at d329fb8e in
 workflow 44254057873; Kotlin/Java app and test compilation passed. APK steps were
-skipped. Phase-2 manual/optional automatic IME integration is now implemented,
-but NOT compiled/tested and awaits fresh MODE A approval. Do not apply phase-1
-test results to phase-2 code. Protected correction learning/removal is still
-pending. No APK is authorized.
+skipped. The owner approved phase-2 tests at cdc87d6e: app/test compilation passed,
+41 of 42 tests passed, and the password literal-input test failed in workflow
+44257607285. The password/no-suggestion composition root cause has been fixed in
+source and tests expanded; the fix has NOT been compiled/retested and needs fresh
+MODE A approval. See docs/ROMAN_URDU_PHASE2_TEST_REPORT.md. No APK is authorized.
+Protected correction learning/removal remains pending; do not start that next
+phase while the phase-2 fix is still awaiting validation.
