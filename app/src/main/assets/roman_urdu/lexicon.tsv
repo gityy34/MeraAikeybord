@@ -1,0 +1,206 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Project-authored seed; migrated from the original prototype, plus owner examples.
+# urdu	english	related	roman_forms	frequency_prior	confidence	previous_hints	next_hints	category
+آپ			aap|ap	50	0.94			word
+آپ کا			aapka	50	0.94			word
+آپ کی			aapki	50	0.94			word
+آپ کو			aapko	50	0.94			word
+میں			main|mein|mai|me|mayn	50	0.94		ghar|گھر|theek|ٹھیک|ja|جا	pronoun_or_postposition
+ہم			hum|ham	50	0.94			word
+تم			tum	50	0.94			word
+تمہارا			tumhara	50	0.94			word
+تمہاری			tumhari	50	0.94			word
+وہ			wo|woh	50	0.94			word
+یہ			ye|yeh	50	0.94			word
+یہاں			yahan|yahaan	50	0.94			word
+وہاں			wahan|wahaan	50	0.94			word
+ہے			hai|hey|hay	50	0.94	lagta|لگتا		verb
+ہیں			hain|hen	50	0.94			word
+ہو			ho	50	0.94			word
+ہوں			hun|hoon	50	0.94			word
+تھا			tha	50	0.94			word
+تھی			thi	50	0.94			word
+تھے			thay|the	50	0.94			word
+ہوگا			hoga	50	0.94			word
+ہوگی			hogi	50	0.94			word
+کا			ka	50	0.94			word
+کی			ki	50	0.94			word
+کے			ke	50	0.94			word
+کو			ko	50	0.94			word
+سے			se	50	0.94			word
+پر			par	50	0.94			word
+پہ			pe	50	0.94			word
+اور			aur|or	50	0.94			word
+لیکن			lekin	50	0.94			word
+مگر			magar	50	0.94			word
+بھی			bhi	50	0.94			word
+ہی			hi	50	0.94			word
+تو			to	50	0.94			word
+تک			tak	50	0.94			word
+لیے			liye|liyeh|liyein|liyea	50	0.94			word
+کیا			kya|kia|kiya	50	0.94		aap|آپ	interrogative_or_verb
+کیوں			kyun|kyoon	50	0.94			word
+کب			kab	50	0.94			word
+کہاں			kahan	50	0.94			word
+کون			kaun|kon	50	0.94			word
+کیسے	how		kaise|kesay|kaisay|kese	50	0.94	aap|آپ	hain|ہیں	adverb
+کیسا			kaisa	50	0.94			word
+کیسی			kaisi	50	0.94			word
+کتنا			kitna	50	0.94			word
+کتنی			kitni	50	0.94			word
+کتنے			kitne	50	0.94			word
+کچھ			kuch	50	0.94			word
+کوئی			koi	50	0.94			word
+نہیں			nahi|nahin|nhi	50	0.94			word
+نہ			na	50	0.94			word
+ہاں			haan|han	50	0.94			word
+جی			ji	50	0.94			word
+میرا			mera	50	0.94			word
+میری			meri	50	0.94			word
+میرے			mere	50	0.94			word
+مجھے			mujhe|mujhay	50	0.94			word
+مجھ			mujh	50	0.94			word
+ہمارا			hamara	50	0.94			word
+ہماری			hamari	50	0.94			word
+ہمارے			hamare	50	0.94			word
+ہمیں			humein|hamein	50	0.94			word
+اس کا			iska|uska	50	0.94			word
+اس کی			iski|uski	50	0.94			word
+اس کو			isko|usko	50	0.94			word
+اس			is|us|iss|uss	50	0.94			word
+ان			in|un	50	0.94			word
+سب			sab	50	0.94			word
+ہر			har	50	0.94			word
+اب			ab	50	0.94			word
+ابھی			abhi	50	0.94			word
+پھر			phir|fir	50	0.94			word
+جب			jab	50	0.94			word
+تب			tab	50	0.94			word
+آج	today		aaj|aj	50	0.94			adverb
+کل			kal	50	0.94			word
+روز			roz	50	0.94			word
+رات			raat	50	0.94			word
+دن			din	50	0.94			word
+صبح			subah	50	0.94			word
+شام			shaam	50	0.94			word
+وقت			waqt|waqat	50	0.94			word
+پہلے			pehle	50	0.94			word
+بعد			baad|bad	50	0.94			word
+اچھا	good	بہتر|عمدہ	acha|achha|accha	50	0.94	mujhe|مجھے	lagta|لگتا	adjective
+اچھی			achi|achhi	50	0.94			word
+اچھے			ache	50	0.94			word
+ٹھیک	okay	درست|مناسب	theek|thik|thek|teek|tik	50	0.94	main|mein|mayn|میں	hoon|hun|ہوں|hai|ہے	adjective
+بہت			bohat|bahut|buhat	50	0.94			word
+زیادہ			zyada|ziyada	50	0.94			word
+کم			kam	50	0.94			word
+بالکل			bilkul	50	0.94			word
+ضرور			zaroor	50	0.94			word
+شکریہ	thanks	مہربانی	shukriya|shukria	50	0.94			noun
+مہربانی			meherbani|mehrbani	50	0.94			word
+سلام			salam|salaam	50	0.94			word
+السلام			assalam	50	0.94			word
+علیکم			alaikum	50	0.94			word
+وعلیکم			walaikum	50	0.94			word
+اللہ			allah	50	0.94			word
+خدا			khuda	50	0.94			word
+حافظ			hafiz	50	0.94			word
+ان شاء اللہ			inshallah	50	0.94			word
+ماشاءاللہ			mashallah	50	0.94			word
+دوست			dost	50	0.94			word
+بھائی			bhai	50	0.94			word
+بہن			behen|behan	50	0.94			word
+امی			ammi	50	0.94			word
+ابو			abu	50	0.94			word
+نام			naam|nam	50	0.94			word
+گھر	home	مکان	ghar	50	0.94	main|mein|میں	ja|جا|par|پر	noun
+کام			kaam	50	0.94			word
+کمرہ			kamra	50	0.94			word
+بات			baat	50	0.94			word
+پانی			pani|paani	50	0.94			word
+کھانا		غذا	khana|khaana	50	0.94			noun_or_verb
+چائے			chai	50	0.94			word
+پیسہ			paisa	50	0.94			word
+پیسے			paise	50	0.94			word
+کر			kar	50	0.94			word
+کرو			karo	50	0.94			word
+کریں			karein|karen	50	0.94			word
+کرنا			karna	50	0.94			word
+کرتا			karta	50	0.94			word
+کرتی			karti	50	0.94			word
+کرتے			karte	50	0.94			word
+کریں گے			karenge	50	0.94			word
+کرے گا			karega	50	0.94			word
+رہا			raha|rha	50	0.94			word
+رہی			rahi|rhi	50	0.94			word
+رہے			rahe|rhe	50	0.94			word
+گیا			gaya	50	0.94			word
+گئی			gayi	50	0.94			word
+گئے			gaye	50	0.94			word
+آیا			aya|aaya	50	0.94			word
+آئی			ayi|aayi	50	0.94			word
+آؤ			aao|ao	50	0.94			word
+جاؤ			jao	50	0.94			word
+جانا			jana	50	0.94			word
+آنا			aana|ana	50	0.94			word
+دو			do	50	0.94			word
+دے			de	50	0.94			word
+دینا			dena	50	0.94			word
+دیا			diya	50	0.94			word
+دی			di	50	0.94			word
+لو			lo	50	0.94			word
+لینا			lena	50	0.94			word
+لکھو			likho	50	0.94			word
+لکھنا			likhna	50	0.94			word
+لکھ			likh	50	0.94			word
+لکھا			likha	50	0.94			word
+پڑھو			parho	50	0.94			word
+پڑھنا			parhna	50	0.94			word
+بولو			bolo	50	0.94			word
+بول			bol	50	0.94			word
+بولنا			bolna	50	0.94			word
+بتاؤ			batao	50	0.94			word
+بتائیں			batayein	50	0.94			word
+دیکھو			dekho	50	0.94			word
+دیکھ			dekh	50	0.94			word
+دیکھا			dekha	50	0.94			word
+سنو			suno	50	0.94			word
+سن			sun	50	0.94			word
+سمجھ			samajh	50	0.94			word
+چاہیے			chahiye|chahie	50	0.94			word
+چاہتا			chahta	50	0.94			word
+چاہتی			chahti	50	0.94			word
+سکتا			sakta	50	0.94			word
+سکتی			sakti	50	0.94			word
+سکتے			sakte	50	0.94			word
+ملا			mila	50	0.94			word
+مل			mil	50	0.94			word
+ملنا			milna	50	0.94			word
+پتا			pata	50	0.94			word
+پسند			pasand	50	0.94			word
+خوش			khush	50	0.94			word
+خوشی			khushi	50	0.94			word
+پیار			pyar|pyaar	50	0.94			word
+محبت			mohabbat	50	0.94			word
+اردو			urdu	50	0.94			word
+انگریزی			english|angrezi	50	0.94			word
+رومن			roman	50	0.94			word
+زبان			zaban	50	0.94			word
+کی بورڈ			keyboard	50	0.94			word
+موبائل			mobile	50	0.94			word
+فون			phone	50	0.94			word
+ایپ			app	50	0.94			word
+انٹرنیٹ			internet	50	0.94			word
+پاکستان			pakistan	50	0.94			word
+لاہور			lahore	50	0.94			word
+کراچی			karachi	50	0.94			word
+اسلام آباد			islamabad	50	0.94			word
+ایک			ek|aik	50	0.94			word
+تین			teen	50	0.94			word
+چار			char|chaar	50	0.94			word
+پانچ			paanch|panch	50	0.94			word
+جا			ja	50	0.94	ghar|گھر	raha|رہا	verb
+لگتا			lagta	50	0.94	acha|اچھا	hai|ہے	verb
+بس	enough	کافی	bas|bass	60	0.94		karo|کرو	particle
+باس	smell	بو	bas|baas	40	0.94	buri|بری|gandi|گندی		noun
+بری			buri	50	0.94		bas|باس	adjective
+کھانے			khane|khanay	50	0.94			noun_or_verb

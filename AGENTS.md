@@ -48,11 +48,11 @@ before removing or damaging working features.
    approval according to the selected mode, retest, and report. Do not hide errors
    or introduce temporary workarounds without explanation and approval.
 
-## Testing approval (selection pending)
+## Testing approval (MODE A selected)
 
-The owner has NOT yet selected a permanent testing mode. Until they do, ask before
-executing tests, including CI tests. Do not interpret earlier test approvals as
-permanent authorization under these newly supplied rules.
+On 2026-11-18 the owner selected MODE A: ASK ME EVERY TIME. After every logical
+change, ask before executing tests, including CI tests. Wait for approval.
+No new APK build is authorized by the Roman Urdu improvement task.
 
 - MODE A: ASK ME EVERY TIME. After each logical change ask: "The change is complete.
   Should I run the standard test suite now?" Wait for approval before testing.
@@ -135,3 +135,12 @@ APK at commit bfb11c224bef5c6add305cc6626e5621b3b9706a in workflow 44246942835.
 It has a small seed lexicon plus phonetic fallback; it is not comprehensive Roman
 Urdu/NLP. Physical-device installation/performance and a full security audit were
 not verified in that phase. Do not repeat tests/builds without the new approvals.
+
+## Active Roman Urdu improvement task
+
+Work on `codex/roman-urdu-improvements`, based on the existing Roman Urdu branch.
+See `docs/ROMAN_URDU_IMPROVEMENT.md` for research, source licensing, the baseline,
+planned shared-component changes and rollback, and phase-by-phase acceptance.
+Phase 1 adds an isolated engine, first-party seed data and unexecuted tests. It is
+not wired to the IME. Stop for MODE A testing approval before running any tests
+or continuing to integration/learning phases. No APK is authorized.
