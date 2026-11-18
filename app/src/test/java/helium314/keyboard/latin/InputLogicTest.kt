@@ -26,6 +26,7 @@ import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.inputlogic.InputLogic
 import helium314.keyboard.latin.inputlogic.SpaceState
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.romanurdu.RomanUrduAdapter
 import helium314.keyboard.latin.suggestions.SuggestedWords
 import helium314.keyboard.latin.suggestions.SuggestedWordInfo
 import helium314.keyboard.latin.utils.ScriptUtils
@@ -156,9 +157,10 @@ class InputLogicTest {
         assertEquals(8, cursor)
     }
 
-    private fun switchToRomanUrdu() {
+    private fun switchToRomanUrdu(automatic: Boolean = false) {
+        RomanUrduAdapter.load(latinIME)
         val subtype = SubtypeSettings.getResourceSubtypesForLocale("ur_PK".constructLocale())
-            .first { it.getExtraValueOf("CombiningRules") == "roman_urdu" }
+            .first { it.getExtraValueOf("CombiningRules") == if (automatic) "roman_urdu_auto" else "roman_urdu" }
         latinIME.switchToSubtype(subtype)
     }
 
@@ -173,20 +175,20 @@ class InputLogicTest {
     @Test fun romanUrduSentence() {
         switchToRomanUrdu()
         typeRomanUrdu("aap kaise hain ")
-        assertEquals("آپ کیسے ہیں ", text)
+        assertEquals("aap kaise hain ", text)
     }
 
     @Test fun romanUrduBackspaceDoesNotDeleteEarlierText() {
         setText("پہلے ")
         switchToRomanUrdu()
         typeRomanUrdu("sh")
-        assertEquals("پہلے ش", text)
+        assertEquals("پہلے sh", text)
         functionalKeyPress(KeyCode.DELETE)
-        assertEquals("پہلے س", text)
+        assertEquals("پہلے s", text)
         functionalKeyPress(KeyCode.DELETE)
         assertEquals("پہلے ", text)
         typeRomanUrdu("aap.")
-        assertEquals("پہلے آپ.", text)
+        assertEquals("پہلے aap.", text)
     }
 
     @Test fun romanUrduSwitchingLanguageFinishesComposition() {
@@ -194,7 +196,104 @@ class InputLogicTest {
         typeRomanUrdu("aap")
         latinIME.switchToSubtype(SubtypeSettings.getResourceSubtypesForLocale(Locale.US).first())
         chainInput(" hello")
-        assertEquals("آپ hello", text)
+        assertEquals("aap hello", text)
+    }
+
+    private fun currentRomanSuggestions() = RomanUrduAdapter.suggestions(latinIME,
+        composer.typedWord, connection.textAtCursor, -1, true).also(inputLogic::setSuggestedWords)
+
+    @Test fun romanUrduManualSelectionHasThreeStableChoices() {
+        switchToRomanUrdu()
+        typeRomanUrdu("thik")
+        assertEquals("thik", text)
+        val suggestions = currentRomanSuggestions()
+        assertEquals(listOf("thik", "ٹھیک", "okay", "درست"), suggestions.map { it.word })
+        assertEquals(-1, suggestions.positionOffset(2))
+        assertEquals(0, suggestions.positionOffset(1))
+        assertEquals(1, suggestions.positionOffset(3))
+        latinIME.pickSuggestionManually(suggestions.getInfo(1))
+        handleMessages()
+        assertEquals("ٹھیک", text)
+    }
+
+    @Test fun romanUrduEnglishAndRelatedChoicesCommitExactly() {
+        for (index in listOf(2, 3)) {
+            setText("")
+            switchToRomanUrdu()
+            typeRomanUrdu("acha")
+            val choices = currentRomanSuggestions()
+            val chosen = choices.getWord(index)
+            latinIME.pickSuggestionManually(choices.getInfo(index))
+            handleMessages()
+            assertEquals(chosen, text)
+        }
+    }
+
+    @Test fun romanUrduAutomaticModeConvertsOnlyCompletedKnownWords() {
+        switchToRomanUrdu(true)
+        typeRomanUrdu("thik")
+        assertEquals("thik", text)
+        typeRomanUrdu(" ")
+        assertEquals("ٹھیک ", text)
+        typeRomanUrdu("OpenAI zxqv ")
+        assertEquals("ٹھیک OpenAI zxqv ", text)
+    }
+
+    @Test fun romanUrduAutomaticModeProtectsUrlsAndIdentifiers() {
+        switchToRomanUrdu(true)
+        typeRomanUrdu("aap.com #aap aap123 ")
+        assertEquals("aap.com #aap aap123 ", text)
+    }
+
+    @Test fun romanUrduPasswordFieldRemainsLiteral() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        setText("")
+        switchToRomanUrdu(true)
+        typeRomanUrdu("thik ")
+        assertEquals("thik ", text)
+        assertEquals("", lastAddedWord)
+    }
+
+    @Test fun romanUrduDoesNotLearnBeforeProtectedLearningIsImplemented() {
+        switchToRomanUrdu()
+        typeRomanUrdu("thik")
+        val choices = currentRomanSuggestions()
+        latinIME.pickSuggestionManually(choices.getInfo(1))
+        handleMessages()
+        assertEquals("", lastAddedWord)
+    }
+
+    @Test fun romanUrduRejectsStaleSuggestionsAndClearsUnknownChoices() {
+        switchToRomanUrdu()
+        typeRomanUrdu("thik")
+        val old = currentRomanSuggestions()
+        typeRomanUrdu("x")
+        assertEquals(false, inputLogic.shouldAcceptSuggestions(old))
+        setText("")
+        switchToRomanUrdu()
+        typeRomanUrdu("zxqv")
+        val now = currentRomanSuggestions()
+        assertEquals(listOf("zxqv"), now.map { it.word })
+        assertEquals(false, now.willAutoCorrect)
+    }
+
+    @Test fun romanUrduManualModePreservesEnglishSentence() {
+        switchToRomanUrdu()
+        typeRomanUrdu("hello world public static void main ")
+        assertEquals("hello world public static void main ", text)
+    }
+
+    @Test fun romanUrduIncognitoSelectionDoesNotLearn() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+        setText("")
+        switchToRomanUrdu()
+        assertEquals(true, settingsValues.mIncognitoModeEnabled)
+        typeRomanUrdu("ghar")
+        val suggestions = currentRomanSuggestions()
+        latinIME.pickSuggestionManually(suggestions.getInfo(1))
+        handleMessages()
+        assertEquals("گھر", text)
+        assertEquals("", lastAddedWord)
     }
 
     @Test fun combineHangul() {

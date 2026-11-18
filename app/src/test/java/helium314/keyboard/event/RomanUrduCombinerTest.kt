@@ -14,21 +14,21 @@ class RomanUrduCombinerTest {
         assertTrue(combiner.processEvent(arrayListOf(), key(it.code)).isConsumed)
     }
 
-    @Test fun updatesUrduWhileTypingAndCommitsOnSpace() {
+    @Test fun keepsRomanVisibleUntilSelectionOrBoundary() {
         type("aap")
-        assertEquals("آپ", combiner.combiningStateFeedback)
+        assertEquals("aap", combiner.combiningStateFeedback)
         val space = key(' '.code)
         val commit = combiner.processEvent(arrayListOf(), space)
-        assertEquals("آپ", commit.textToCommit)
+        assertEquals("aap", commit.textToCommit)
         assertSame(space, commit.nextEvent)
         assertEquals("", combiner.combiningStateFeedback)
     }
 
     @Test fun backspaceRestoresPreviousRomanSpelling() {
         type("sh")
-        assertEquals("ش", combiner.combiningStateFeedback)
+        assertEquals("sh", combiner.combiningStateFeedback)
         assertTrue(combiner.processEvent(arrayListOf(), key(KeyCode.DELETE)).isConsumed)
-        assertEquals("س", combiner.combiningStateFeedback)
+        assertEquals("s", combiner.combiningStateFeedback)
         val lastDelete = combiner.processEvent(arrayListOf(), key(KeyCode.DELETE))
         assertEquals(' '.code, lastDelete.codePoint)
         assertEquals(KeyCode.DELETE, lastDelete.nextEvent?.keyCode)
@@ -42,7 +42,7 @@ class RomanUrduCombinerTest {
             type("hain")
             val separator = key(cp)
             val commit = combiner.processEvent(arrayListOf(), separator)
-            assertEquals("ہیں", commit.textToCommit)
+            assertEquals("hain", commit.textToCommit)
             assertSame(separator, commit.nextEvent)
             assertEquals("", combiner.combiningStateFeedback)
         }
@@ -53,9 +53,9 @@ class RomanUrduCombinerTest {
         val shift = key(KeyCode.SHIFT)
         assertSame(shift, combiner.processEvent(arrayListOf(), shift))
         type("p")
-        assertEquals("آپ", combiner.combiningStateFeedback)
+        assertEquals("aap", combiner.combiningStateFeedback)
         combiner.reset()
         type("hai")
-        assertEquals("ہے", combiner.combiningStateFeedback)
+        assertEquals("hai", combiner.combiningStateFeedback)
     }
 }

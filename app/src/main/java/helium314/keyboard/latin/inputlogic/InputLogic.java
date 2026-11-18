@@ -54,6 +54,7 @@ import helium314.keyboard.latin.common.SuggestionSpanUtilsKt;
 import helium314.keyboard.latin.define.DebugFlags;
 import helium314.keyboard.latin.settings.Settings;
 import helium314.keyboard.latin.settings.SettingsValues;
+import helium314.keyboard.latin.romanurdu.RomanUrduAdapter;
 import helium314.keyboard.latin.settings.SpacingAndPunctuations;
 import helium314.keyboard.latin.suggestions.PunctuationSuggestions;
 import helium314.keyboard.latin.suggestions.Suggest;
@@ -168,6 +169,7 @@ public final class InputLogic {
             StatsUtils.onWordCommitUserTyped(mWordComposer.getTypedWord(), mWordComposer.isBatchMode());
         }
         mWordComposer.restartCombining(combiningSpec);
+        if (RomanUrduAdapter.isRoman(combiningSpec)) RomanUrduAdapter.preload(mLatinIME);
         resetComposingState(true /* alsoResetLastComposedWord */);
         mDeleteCount = 0;
         mSpaceState = SpaceState.NONE;
@@ -239,11 +241,11 @@ public final class InputLogic {
                 SystemClock.uptimeMillis(), mSpaceState,
                 getActualCapsMode(settingsValues, keyboardCapsMode));
         mConnection.beginBatchEdit();
-        if (GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
             BackgroundGatheringCache.INSTANCE.onEditSelection(mConnection.getSelectedText(0), mConnection.getTextBeforeCursor(40, 0), mConnection.getTextAfterCursor(40, 0));
         if (mWordComposer.isComposingWord()) {
             if (mWordComposer.isCursorFrontOrMiddleOfComposingWord()) {
-                if (GestureDataGatheringKt.useBackgroundGathering)
+                if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onEditWord(mWordComposer.getTypedWord());
 
                 // stop composing, otherwise the text will end up at the end of the current word
@@ -298,7 +300,7 @@ public final class InputLogic {
             Event event = Event.createPunctuationSuggestionPickedEvent(suggestionInfo);
             return onCodeInput(settingsValues, event, keyboardCapsMode, handler);
         }
-        if (GestureDataGatheringKt.useBackgroundGathering) {
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering) {
             if (mWordComposer.isBatchMode())
                 // should only happen selecting different suggestion for gesture typed word
                 BackgroundGatheringCache.INSTANCE.onPickSuggestionAfterGesturing(suggestionInfo, mWordComposer.getTypedWord());
@@ -398,7 +400,7 @@ public final class InputLogic {
         }
 
         // if all text is gone, we treat it like onStartInput
-        if (GestureDataGatheringKt.useBackgroundGathering && newSelStart == 0 && newSelEnd == 0 && !mConnection.hasTextAfterCursor())
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering && newSelStart == 0 && newSelEnd == 0 && !mConnection.hasTextAfterCursor())
             BackgroundGatheringCache.saveOrClear(mLatinIME);
 
         // TODO: the following is probably better done in resetEntireInputState().
@@ -479,9 +481,9 @@ public final class InputLogic {
             CapsMode keyboardCapsMode, LatinIME.UIHandler handler) {
         mJustRevertedACommit = false;
 
-        if (GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
             BackgroundGatheringCache.INSTANCE.onEditSelection(mConnection.getSelectedText(0), mConnection.getTextBeforeCursor(40, 0), mConnection.getTextAfterCursor(40, 0));
-        if (GestureDataGatheringKt.useBackgroundGathering && mWordComposer.isComposingWord() && mWordComposer.isCursorFrontOrMiddleOfComposingWord())
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering && mWordComposer.isComposingWord() && mWordComposer.isCursorFrontOrMiddleOfComposingWord())
             BackgroundGatheringCache.INSTANCE.onEditWord(mWordComposer.getTypedWord());
 
         Event processedEvent = mWordComposer.processEvent(event);
@@ -532,9 +534,9 @@ public final class InputLogic {
         handler.cancelUpdateSuggestionStrip();
         ++mAutoCommitSequenceNumber;
 
-        if (GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
             BackgroundGatheringCache.INSTANCE.onEditSelection(mConnection.getSelectedText(0), mConnection.getTextBeforeCursor(40, 0), mConnection.getTextAfterCursor(40, 0));
-        if (GestureDataGatheringKt.useBackgroundGathering && mWordComposer.isComposingWord() && mWordComposer.isCursorFrontOrMiddleOfComposingWord())
+        if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering && mWordComposer.isComposingWord() && mWordComposer.isCursorFrontOrMiddleOfComposingWord())
             BackgroundGatheringCache.INSTANCE.onEditWord(mWordComposer.getTypedWord());
 
         mConnection.beginBatchEdit();
@@ -624,6 +626,7 @@ public final class InputLogic {
     // TODO: on the long term, this method should become private, but it will be difficult.
     // Especially, how do we deal with InputMethodService.onDisplayCompletions?
     public void setSuggestedWords(final SuggestedWords suggestedWords) {
+        if (!shouldAcceptSuggestions(suggestedWords)) return;
         if (!suggestedWords.isEmpty()) {
             final SuggestedWordInfo suggestedWordInfo;
             if (suggestedWords.getWillAutoCorrect()) {
@@ -833,7 +836,7 @@ public final class InputLogic {
                 }
                 break;
             case KeyCode.UNDO:
-                if (GestureDataGatheringKt.useBackgroundGathering)
+                if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onUndo(mWordComposer.isComposingWord() ? mWordComposer.getTypedWord() : mLastComposedWord.mCommittedWord);
                 sendDownUpKeyEventWithMetaState(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON);
                 break;
@@ -1143,7 +1146,21 @@ public final class InputLogic {
         }
         // isComposingWord() may have changed since we stored wasComposing
         if (mWordComposer.isComposingWord()) {
-            if (settingsValues.mAutoCorrectEnabled && ! isInlineEmojiSearchAction()) {
+            if (isRomanUrdu()) {
+                final String separator = StringUtils.newSingleCodePointString(codePoint);
+                final String replacement = RomanUrduAdapter.isAutomatic(mWordComposer.getCombiningSpec())
+                        && romanUrduFieldAllowed(settingsValues)
+                        // An ASCII dot may start a domain; do not convert before its suffix is known.
+                        && (Character.isWhitespace(codePoint) || "،۔؟,!?".indexOf(codePoint) >= 0)
+                        ? RomanUrduAdapter.automaticReplacement(mWordComposer.getTypedWord(), mConnection.getTextAtCursor())
+                        : null;
+                if (replacement == null) commitTyped(settingsValues, separator);
+                else {
+                    commitChosenWord(settingsValues, replacement, null,
+                            LastComposedWord.COMMIT_TYPE_DECIDED_WORD, separator);
+                    inputTransaction.setDidAutoCorrect();
+                }
+            } else if (settingsValues.mAutoCorrectEnabled && ! isInlineEmojiSearchAction()) {
                 final String separator = shouldAvoidSendingCode ? LastComposedWord.NOT_A_SEPARATOR
                         : StringUtils.newSingleCodePointString(codePoint);
                 commitCurrentAutoCorrection(settingsValues, separator, handler);
@@ -1276,7 +1293,7 @@ public final class InputLogic {
         if (mWordComposer.isComposingWord()) {
             if (mWordComposer.isBatchMode()) {
                 final String rejectedSuggestion = mWordComposer.getTypedWord();
-                if (GestureDataGatheringKt.useBackgroundGathering)
+                if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onRejectedSuggestion(rejectedSuggestion);
                 mWordComposer.reset();
                 mWordComposer.setRejectedBatchModeSuggestion(rejectedSuggestion);
@@ -1285,7 +1302,7 @@ public final class InputLogic {
                 }
                 StatsUtils.onBackspaceWordDelete(rejectedSuggestion.length());
             } else {
-                if (GestureDataGatheringKt.useBackgroundGathering)
+                if (!isRomanUrdu() && GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.removeLast(mWordComposer.getTypedWord());
                 if (deleteWord) {
                     int length = mWordComposer.size();
@@ -1461,6 +1478,7 @@ public final class InputLogic {
     }
 
     void unlearnWord(String word, SettingsValues settingsValues, DictionaryFacilitator.UnlearnEvent event) {
+        if (isRomanUrdu()) return;
         NgramContext ngramContext = mConnection.getNgramContextFromNthPreviousWord(settingsValues.mSpacingAndPunctuations, 2);
         long timeStampInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
         mDictionaryFacilitator.unlearnFromUserHistory(word, ngramContext, timeStampInSeconds, event);
@@ -1655,6 +1673,8 @@ public final class InputLogic {
 
     private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
             final String suggestion, @NonNull final NgramContext ngramContext) {
+        // Roman correction learning is a separate, explicitly protected word-pair feature.
+        if (isRomanUrdu()) return;
         // For addition to user history we want suggestions (even if just for autocorrect) or a gestured word.
         // That's to avoid unintended additions in some sensitive fields, or fields that
         // expect to receive non-words.
@@ -1737,7 +1757,7 @@ public final class InputLogic {
                 // Show new suggestions if we have at least one. Otherwise keep the old
                 // suggestions with the new typed word. Exception: if the length of the
                 // typed word is <= 1 (after a deletion typically) we clear old suggestions.
-                if (suggestedWords.size() > 1 || typedWordString.length() <= 1) {
+                if (isRomanUrdu() || suggestedWords.size() > 1 || typedWordString.length() <= 1) {
                     holder.set(suggestedWords);
                 } else {
                     holder.set(retrieveOlderSuggestions(typedWordInfo, mSuggestedWords));
@@ -2379,7 +2399,7 @@ public final class InputLogic {
         long startTimeMillis = 0;
         if (DebugFlags.DEBUG_ENABLED) {
             startTimeMillis = SystemClock.elapsedRealtime();
-            Log.d(TAG, "commitChosenWord() : [" + chosenWord + "]");
+            if (!isRomanUrdu()) Log.d(TAG, "commitChosenWord() : [" + chosenWord + "]");
         }
         // essentially reverted https://github.com/lineageos/android_packages_inputmethods_LatinIME/commit/ee6de1466bc98e27bd414c9a7451f2aee3f9e721
         // can't find any drawback (performance, neither when setting nor when reading)
@@ -2400,7 +2420,7 @@ public final class InputLogic {
             long runTimeMillis = SystemClock.elapsedRealtime() - startTimeMillis;
             Log.d(TAG, "commitChosenWord() : " + runTimeMillis + " ms to run "
                     + "Connection.getNgramContextFromNthPreviousWord()");
-            Log.d(TAG, "commitChosenWord() : NgramContext = " + ngramContext);
+            if (!isRomanUrdu()) Log.d(TAG, "commitChosenWord() : NgramContext = " + ngramContext);
             startTimeMillis = SystemClock.elapsedRealtime();
         }
 
@@ -2487,6 +2507,22 @@ public final class InputLogic {
         return true;
     }
 
+    private boolean isRomanUrdu() {
+        return RomanUrduAdapter.isRoman(mWordComposer.getCombiningSpec());
+    }
+
+    public boolean shouldAcceptSuggestions(SuggestedWords words) {
+        if (!(words instanceof helium314.keyboard.latin.romanurdu.RomanUrduSuggestedWords)) return true;
+        return isRomanUrdu() && words.getTypedWordInfo() != null
+                && words.getTypedWordInfo().getWord().equals(mWordComposer.getTypedWord());
+    }
+
+    private boolean romanUrduFieldAllowed(SettingsValues settingsValues) {
+        return settingsValues.mInputAttributes.mIsGeneralTextInput
+                && !settingsValues.mInputAttributes.mIsPasswordField
+                && settingsValues.mInputAttributes.mShouldShowSuggestions;
+    }
+
     void getSuggestedWords(InputStyle inputStyle, int sequenceNumber, OnGetSuggestedWordsCallback callback) {
         getSuggestedWords(inputStyle, null, sequenceNumber, callback);
     }
@@ -2503,6 +2539,12 @@ public final class InputLogic {
             return;
         }
         final SettingsValues settingsValues = Settings.getValues();
+        if (isRomanUrdu() && !mWordComposer.isBatchMode()) {
+            callback.onGetSuggestedWords(RomanUrduAdapter.suggestions(mLatinIME,
+                    mWordComposer.getTypedWord(), textAtCursor, sequenceNumber,
+                    romanUrduFieldAllowed(settingsValues)));
+            return;
+        }
         mWordComposer.adviseCapitalizedModeBeforeFetchingSuggestions(
                 getActualCapsMode(settingsValues, KeyboardSwitcher.getInstance().getKeyboardCapsMode()));
         try {

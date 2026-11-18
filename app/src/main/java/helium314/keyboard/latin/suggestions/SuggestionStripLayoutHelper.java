@@ -219,6 +219,9 @@ final class SuggestionStripLayoutHelper {
      *         Negative integer if the word of the index shouldn't be shown on the suggestion strip.
      */
     private int getPositionInSuggestionStrip(int indexInSuggestedWords, SuggestedWords suggestedWords) {
+        if (suggestedWords instanceof helium314.keyboard.latin.romanurdu.RomanUrduSuggestedWords roman) {
+            return mCenterPositionInStrip + roman.positionOffset(indexInSuggestedWords);
+        }
         SettingsValues settingsValues = Settings.getValues();
         boolean shouldOmitTypedWord = shouldOmitTypedWord(suggestedWords.getInputStyle(),
                 settingsValues.mGestureFloatingPreviewTextEnabled, true);

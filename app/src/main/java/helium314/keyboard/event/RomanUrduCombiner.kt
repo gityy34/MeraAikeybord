@@ -44,7 +44,7 @@ class RomanUrduCombiner : Combiner {
     }
 
     override val combiningStateFeedback: CharSequence
-        get() = RomanUrduTransliterator.convert(roman.toString())
+        get() = roman.toString()
 
     override fun reset() { roman.setLength(0) }
 

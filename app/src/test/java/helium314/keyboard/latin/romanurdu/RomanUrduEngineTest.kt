@@ -140,6 +140,13 @@ class RomanUrduEngineTest {
         assertEquals(initial, engine.suggest("ghar"))
     }
 
+    @Test fun standaloneAmbiguousWordsOfferManualUrduWithoutForcingConversion() {
+        assertEquals("میں", engine.suggest("main").matches.first().entry.urdu)
+        assertNull(engine.suggest("main").automaticReplacement)
+        assertEquals("bad day", engine.convertSentence("bad day", true))
+        assertEquals("sun", engine.convertSentence("sun", true))
+    }
+
     @Test fun dictionaryRejectsMalformedAndUnsafeInput() {
         for (line in listOf("wrong", "آپ\t\t\taap\t50\tNaN\t\t\tword",
             "آپ\t\t\taap\t200\t0.9\t\t\tword",

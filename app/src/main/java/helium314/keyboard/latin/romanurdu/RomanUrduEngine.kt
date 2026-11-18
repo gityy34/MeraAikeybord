@@ -22,7 +22,8 @@ class RomanUrduEngine(
     private val token = Regex("[\\p{L}]+")
     private val sentenceBoundary = Regex("[.!?؟۔\\n]")
     private val urduVocabulary = lexicon.entries.map { it.urdu }.toSet()
-    private val ambiguous = setOf("main", "mein", "me", "is", "in", "to", "or", "the", "do", "par", "ham")
+    private val ambiguous = setOf("main", "mein", "me", "is", "in", "to", "or", "the", "do", "par", "ham",
+        "bad", "sun", "us", "char")
 
     fun suggest(roman: String, before: String = "", after: String = ""): RomanUrduResult {
         fun empty() = RomanUrduResult(roman, emptyList(), emptyList(), null)
@@ -37,7 +38,7 @@ class RomanUrduEngine(
             it !in ambiguous && (lexicon.exact.containsKey(it) || it in urduVocabulary)
         }
         val englishContext = context.count { it !in ambiguous && it in protectedEnglish }
-        if (lower in protectedEnglish && (lower !in ambiguous || romanContext == 0)) return empty()
+        if (lower in protectedEnglish && lower !in ambiguous) return empty()
         if (englishContext >= 2 && romanContext == 0) return empty()
         // Treat unknown title-cased words as possible names, not spelling mistakes.
         if (roman.any(Char::isUpperCase) && lexicon.exact[lower].isNullOrEmpty()) return empty()

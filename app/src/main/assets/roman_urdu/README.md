@@ -26,6 +26,6 @@ review, validation and held-out quality evaluation before integration.
 English dictionary or language detector. The eventual Android adapter must use
 the existing English dictionaries and preserve the dedicated English input path.
 
-This data and the new engine are not wired into the keyboard yet. The old
-RomanUrduCombiner/Transliterator remain the active implementation until the
-engine tests have been approved and the separate integration phase is completed.
+The isolated engine passed its approved phase-1 tests. Phase-2 IME integration
+is implemented but awaits new testing approval. Do not treat the phase-1 results
+as validation of the adapter, mode selection, editor commits or strip positions.

@@ -1168,6 +1168,15 @@
         android:imeSubtypeExtraValue="KeyboardLayoutSet=MAIN:roman_urdu,CombiningRules=roman_urdu,EmojiCapable"
         android:isAsciiCapable="false"
     />
+    <subtype android:icon="@drawable/ic_ime_switcher"
+        android:label="@string/subtype_roman_urdu_auto"
+        android:subtypeId="0x6d727573"
+        android:imeSubtypeLocale="ur_PK"
+        android:languageTag="ur-PK"
+        android:imeSubtypeMode="keyboard"
+        android:imeSubtypeExtraValue="KeyboardLayoutSet=MAIN:roman_urdu_auto,CombiningRules=roman_urdu_auto,EmojiCapable"
+        android:isAsciiCapable="false"
+    />
     <!-- This Uzbek keyboard is a preliminary layout.
            This isn't based on the final specification. -->
     <subtype android:icon="@drawable/ic_ime_switcher"

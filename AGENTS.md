@@ -141,6 +141,9 @@ not verified in that phase. Do not repeat tests/builds without the new approvals
 Work on `codex/roman-urdu-improvements`, based on the existing Roman Urdu branch.
 See `docs/ROMAN_URDU_IMPROVEMENT.md` for research, source licensing, the baseline,
 planned shared-component changes and rollback, and phase-by-phase acceptance.
-Phase 1 adds an isolated engine, first-party seed data and unexecuted tests. It is
-not wired to the IME. Stop for MODE A testing approval before running any tests
-or continuing to integration/learning phases. No APK is authorized.
+The owner approved phase-1 tests: 26 targeted CI tests passed at d329fb8e in
+workflow 44254057873; Kotlin/Java app and test compilation passed. APK steps were
+skipped. Phase-2 manual/optional automatic IME integration is now implemented,
+but NOT compiled/tested and awaits fresh MODE A approval. Do not apply phase-1
+test results to phase-2 code. Protected correction learning/removal is still
+pending. No APK is authorized.

@@ -43,7 +43,7 @@ class CombinerChain(initialText: String, combiningSpec: String) {
             mCombiners.add(HangulCombiner())
         else if (combiningSpec == "bn_khipro")
             mCombiners.add(BnKhiproCombiner())
-        else if (combiningSpec == "roman_urdu")
+        else if (combiningSpec == "roman_urdu" || combiningSpec == "roman_urdu_auto")
             mCombiners.add(RomanUrduCombiner())
     }
 
