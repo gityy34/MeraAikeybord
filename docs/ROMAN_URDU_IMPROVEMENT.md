@@ -1,13 +1,15 @@
 # Roman Urdu improvement: assessment, research, and phased implementation
 
 Date: 2026-11-18. Testing mode: **A (ask after each logical change)**.
-APK builds: **not authorized**. No external dataset has been imported.
+One Debug APK was approved after successful retesting and has been built from
+cc8b6b6b. Future APK builds require fresh approval. No external dataset was imported.
 
 Current status: phase 1 passed 26 approved CI tests and Android Kotlin/Java
 compilation at d329fb8e; see `ROMAN_URDU_PHASE1_TEST_REPORT.md`. Phase-2 integration
-compiled at cdc87d6e and passed 41 of 42 tests. A password-input failure was fixed
-in source; that fix awaits fresh approval and validation. See
-`ROMAN_URDU_PHASE2_TEST_REPORT.md`. Earlier
+initially passed 41/42 tests at cdc87d6e. The corrected cc8b6b6b revision then
+passed 44/44 with compilation and produced a statically verified Debug APK.
+See `ROMAN_URDU_PHASE2_TEST_REPORT.md` for history and
+`ROMAN_URDU_DEBUG_BUILD_2026-11-18.md` for current results and remaining limits. Earlier
 baseline observations below describe the pre-integration revision.
 
 ## Baseline and root causes
@@ -91,7 +93,7 @@ IME input, suggestions, English, layouts, clipboard, emoji or themes was modifie
 This stage is not the complete feature and must not be described as working in
 the app until integration and relevant tests actually pass.
 
-### Phase 2 — IME integration (compiled; 41/42 passed; password fix NOT RETESTED)
+### Phase 2 — IME integration (corrected revision compiled; 44/44 targeted tests passed)
 
 Shared changes were explained before implementation. They add Roman-only
 checks in `InputLogic.getSuggestedWords` and suggestion picks;

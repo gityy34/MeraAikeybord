@@ -52,7 +52,10 @@ before removing or damaging working features.
 
 On 2026-11-18 the owner selected MODE A: ASK ME EVERY TIME. After every logical
 change, ask before executing tests, including CI tests. Wait for approval.
-No new APK build is authorized by the Roman Urdu improvement task.
+The owner later approved one corrected test run followed by a Debug APK if all
+tests passed ("yes and after then apk okay"). That one-time authorization has
+been fulfilled; future logical changes/tests and future APK builds still follow
+the approval rules below. No signed distribution Release has been approved.
 
 - MODE A: ASK ME EVERY TIME. After each logical change ask: "The change is complete.
   Should I run the standard test suite now?" Wait for approval before testing.
@@ -145,8 +148,11 @@ The owner approved phase-1 tests: 26 targeted CI tests passed at d329fb8e in
 workflow 44254057873; Kotlin/Java app and test compilation passed. APK steps were
 skipped. The owner approved phase-2 tests at cdc87d6e: app/test compilation passed,
 41 of 42 tests passed, and the password literal-input test failed in workflow
-44257607285. The password/no-suggestion composition root cause has been fixed in
-source and tests expanded; the fix has NOT been compiled/retested and needs fresh
-MODE A approval. See docs/ROMAN_URDU_PHASE2_TEST_REPORT.md. No APK is authorized.
-Protected correction learning/removal remains pending; do not start that next
-phase while the phase-2 fix is still awaiting validation.
+44257607285. At cc8b6b6b the approved retest passed 44/44 tests and compilation in
+workflow 44260667257. After that success, the owner-approved Debug APK was built
+separately in workflow 44261292695 from the SAME commit, verified, and uploaded.
+See docs/ROMAN_URDU_DEBUG_BUILD_2026-11-18.md for links, exact hashes, signature
+checks, installation limits and the previous-Debug signer mismatch. No actual
+phone/emulator installation was tested. Protected correction learning/removal,
+device performance/accessibility and broader regression/security review remain
+pending. No new product code was changed after that successful test/build.

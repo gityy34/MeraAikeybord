@@ -1,9 +1,10 @@
 # Offline Roman Urdu: staged implementation
 
-**Phase 1 passed. Phase 2 compiled, but one of 42 tests failed; the source fix
-awaits new testing approval.**
-Do not install/release a new build on the strength of earlier test results.
-No APK build is currently authorized.
+**The corrected phase-2 revision passed 44 targeted tests and compilation. An
+owner-approved Debug APK was built and statically verified from the same commit.**
+See [download and installation report](docs/ROMAN_URDU_DEBUG_BUILD_2026-11-18.md).
+Physical-device installation and performance remain unverified; this is a test
+build, not a signed distribution Release.
 
 The existing language settings provide two distinct Roman entries alongside the
 unchanged ordinary Urdu and English layouts:
@@ -48,10 +49,11 @@ implemented. No new user corrections are persisted in this stage.
 including app/test Kotlin and Java compilation, at commit d329fb8e. That revision
 had not connected the new engine to the IME.
 
-The subsequent adapter/IME revision compiled and passed 41 of 42 targeted tests.
-The password literal-input test failed. Its source fix and expanded tests have
-**not been compiled or retested** and await MODE A approval. See the
-[phase-2 report](docs/ROMAN_URDU_PHASE2_TEST_REPORT.md). No emulator or
+The initial adapter/IME revision passed 41/42 tests and exposed password input
+loss. The corrected revision cc8b6b6b passed **44/44**, including stronger password,
+visible-password and no-suggestion-field tests. See the
+[phase-2 history](docs/ROMAN_URDU_PHASE2_TEST_REPORT.md) and
+[current build report](docs/ROMAN_URDU_DEBUG_BUILD_2026-11-18.md). No emulator or
 physical-device UI, accessibility, installation, battery, memory, or latency
 validation has been performed for this revision.
 

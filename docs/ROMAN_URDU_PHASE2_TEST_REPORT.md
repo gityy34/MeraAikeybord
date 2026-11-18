@@ -1,5 +1,10 @@
 # Phase 2 approved validation and pending fix
 
+**Historical report:** the fix below was subsequently approved and validated at
+cc8b6b6b (44/44 passed); an approved Debug APK followed. See
+[current results and download](ROMAN_URDU_DEBUG_BUILD_2026-11-18.md). The old
+failure/results below are retained for provenance, not the current status.
+
 Date: 2026-11-18. Owner approval covered phase-2 compilation, Roman Urdu tests,
 and selected English regression tests. APK building was not approved.
 
