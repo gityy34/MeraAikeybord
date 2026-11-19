@@ -1,0 +1,49 @@
+name: Build approved Urdu layout Debug APK v3
+on:
+  push:
+    branches: ['codex/build-urdu-layout-v3']
+    paths: ['.github/workflows/build-urdu-layout-v3.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.event.before == '4e6b81bed26a1344f3bc7436419e980bf2b5cda7'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: '4e6b81bed26a1344f3bc7436419e980bf2b5cda7'
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Assemble approved Debug APK
+        run: ./gradlew :app:assembleDebug
+      - name: Verify APK metadata, signature, and Urdu assets
+        shell: bash
+        run: |
+          apk='app/build/outputs/apk/debug/HeliBoard_4.3-beta1-v3-debug.apk'
+          test -s "$apk"
+          unzip -tq "$apk"
+          sdk_tools="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner -print | sort -V | tail -n 1)")"
+          "$sdk_tools/apksigner" verify --verbose --print-certs "$apk"
+          badging="$("$sdk_tools/aapt2" dump badging "$apk")"
+          printf '%s\n' "$badging" | awk '/^package:|^sdkVersion:|^targetSdkVersion:|^native-code:|^uses-permission:/'
+          [[ "$badging" == *"name='helium314.keyboard.debug' versionCode='4301' versionName='4.3-beta1-v3'"* ]]
+          [[ "$badging" != *"android.permission.INTERNET"* ]]
+          unzip -p "$apk" assets/layouts/main/urdu.json | cmp app/src/main/assets/layouts/main/urdu.json -
+          unzip -p "$apk" assets/locale_key_texts/ur.txt | cmp app/src/main/assets/locale_key_texts/ur.txt -
+          stat -c 'APK bytes: %s' "$apk"
+          sha256sum "$apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeraAiKeyboard-v3-debug
+          path: app/build/outputs/apk/debug/HeliBoard_4.3-beta1-v3-debug.apk
+          if-no-files-found: error
