@@ -18,7 +18,8 @@
 چ ث
 ط ظ
 ن ں
-punctuation ؟ ، ! . - ؛ ٭ َ ِ ُ ْ ّ ٰ ً ٍ ٌ ء ۔
+punctuation ؟ ، ! . -
+urdu_punctuation !autoColumnOrder!8 ؟ ، ۔ ء َ◌|َ ِ◌|ِ ُ◌|ُ ْ◌|ْ ّ◌|ّ ٰ◌|ٰ ً◌|ً ٍ◌|ٍ ٌ◌|ٌ ! ؛ -
 « „ “ ”
 » ‚ ‘ ’ ‹ ›
 
@@ -31,4 +32,3 @@ question: ؟
 
 [number_row]
 ۱ ۲ ۳ ۴ ۵ ۶ ۷ ۸ ۹ ۰
-

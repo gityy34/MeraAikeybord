@@ -120,7 +120,11 @@ sealed interface KeyData : AbstractKeyData {
                 return listOf("…")
             if (params.mId.element.isNumberLayout)
                 return listOf(":", "…", ";", "∞", "π", "√", "°", "^")
-            val popupKeys = params.mLocaleKeyboardInfos.getPopupKeys("punctuation")!!.toMutableList()
+            // All Urdu subtypes share locale data, but only the native Urdu layout uses this popup.
+            val urduPopup = if (params.mId.element.isAlphabet && params.mId.subtype.mainLayoutName == "urdu")
+                params.mLocaleKeyboardInfos.getPriorityPopupKeys("urdu_punctuation")
+            else null
+            val popupKeys = (urduPopup ?: params.mLocaleKeyboardInfos.getPopupKeys("punctuation")!!).toMutableList()
             if (params.mId.subtype.isRtlSubtype) {
                 for (i in popupKeys.indices)
                     popupKeys[i] = popupKeys[i].rtlLabel(params) // for parentheses
