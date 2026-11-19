@@ -33,7 +33,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Test Roman Urdu conversion and editor integration
         if: inputs.run_tests
-        run: ./gradlew :app:testDebugUnitTest --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*' --tests '*InputLogicTest.inputCode' --tests '*InputLogicTest.delete'
+        run: ./gradlew :app:testDebugUnitTest --tests '*RomanUrdu*' --tests '*UrduLayout*' --tests '*InputLogicTest.romanUrdu*' --tests '*InputLogicTest.inputCode' --tests '*InputLogicTest.delete'
       - name: Build test APK
         if: inputs.build_debug_apk
         run: ./gradlew assembleDebug
@@ -49,3 +49,4 @@ jobs:
         with:
           name: roman-urdu-test-reports
           path: app/build/reports/tests/
+

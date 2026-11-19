@@ -18,7 +18,7 @@
 چ ث
 ط ظ
 ن ں
-punctuation ؟ ، ! . -
+punctuation ؟ ، ! . - ؛ ٭ َ ِ ُ ْ ّ ٰ ً ٍ ٌ ء ۔
 « „ “ ”
 » ‚ ‘ ’ ‹ ›
 
@@ -31,3 +31,4 @@ question: ؟
 
 [number_row]
 ۱ ۲ ۳ ۴ ۵ ۶ ۷ ۸ ۹ ۰
+

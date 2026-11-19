@@ -112,6 +112,14 @@ version, commit/workflow provenance, and build type. Do not silently substitute
 Debug for Release: explain missing signing and obtain approval for an alternative.
 Keep signing private; never request public disclosure of private signing keys.
 
+### APK revision numbering
+
+For each newly approved APK build, increment the Android `versionCode` from the
+previous APK by exactly one. Do not rebuild an APK with a reused version code.
+Keep the semantic `versionName` unchanged unless the owner explicitly requests
+a release-name change; the monotonically increasing version code is the update
+and installation safeguard.
+
 ## GitHub, reporting, and outstanding decisions
 
 Keep clear commits/history and understandable CI logs. Preserve unrelated work;
@@ -156,3 +164,4 @@ checks, installation limits and the previous-Debug signer mismatch. No actual
 phone/emulator installation was tested. Protected correction learning/removal,
 device performance/accessibility and broader regression/security review remain
 pending. No new product code was changed after that successful test/build.
+
