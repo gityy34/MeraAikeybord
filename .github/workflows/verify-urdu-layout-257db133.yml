@@ -1,0 +1,35 @@
+name: Verify Urdu layout revision 257db133
+on:
+  push:
+    branches: ['codex/ci-urdu-layout-257db133']
+    paths: ['.github/workflows/verify-urdu-layout-257db133.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    if: github.event.before == '257db133cd8e3cd40df018a41fd9dc54d8f19599'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: '257db133cd8e3cd40df018a41fd9dc54d8f19599'
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run Urdu layout and input regression tests
+        run: ./gradlew :app:testDebugUnitTest --tests '*UrduLayout*' --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*' --tests '*InputLogicTest.inputCode' --tests '*InputLogicTest.delete'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: urdu-layout-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
