@@ -114,11 +114,12 @@ Keep signing private; never request public disclosure of private signing keys.
 
 ### APK revision numbering
 
-For each newly approved APK build, increment the Android `versionCode` from the
-previous APK by exactly one. Do not rebuild an APK with a reused version code.
-Keep the semantic `versionName` unchanged unless the owner explicitly requests
-a release-name change; the monotonically increasing version code is the update
-and installation safeguard.
+For each newly approved APK, increase both the owner-visible APK revision and
+the Android `versionCode` by one from the previous APK. Show the revision in
+`versionName` and the resulting filename (for example, `4.3-beta1-v3` with
+version code `4301`, followed by revision `v4` with code `4302`). Keep the
+upstream version prefix unless the owner changes it. Assign the next revision
+when preparing the approved build.
 
 ## GitHub, reporting, and outstanding decisions
 
@@ -163,5 +164,23 @@ See docs/ROMAN_URDU_DEBUG_BUILD_2026-11-18.md for links, exact hashes, signature
 checks, installation limits and the previous-Debug signer mismatch. No actual
 phone/emulator installation was tested. Protected correction learning/removal,
 device performance/accessibility and broader regression/security review remain
-pending. No new product code was changed after that successful test/build.
+pending. See the separate Urdu layout phase below for later changes.
 
+## Urdu layout Debug APK revision 3
+
+The owner approved targeted retesting and chose a Debug APK for personal use
+after the tests passed. GitHub Actions run 44588891882 checked product commit
+`9fa6511453b24dac84690e2bcc39f77c79e04cc4` and passed 48 tests with zero failures,
+errors or skips. The native Urdu layout has four character rows. Its full-stop
+popup uses readable labels and single Unicode code points for diacritics.
+The same-locale Roman Urdu layouts retain their earlier period popups.
+
+Build run 44589683135 used commit `4e6b81bed26a1344f3bc7436419e980bf2b5cda7`,
+which adds only APK version metadata to the tested source. It produced
+`HeliBoard_4.3-beta1-v3-debug.apk` with version code `4301`. The artifact is
+<https://github.com/gityy34/MeraAikeybord/actions/runs/44589683135/artifacts/14563507106>.
+CI verified the APK signature, version, bundled Urdu assets and permissions.
+The Debug certificate differs from the previous APK. Physical installation,
+actual screen geometry, cursor movement and Backspace with diacritics across
+editors remain unverified. Approval applied only to the completed run and build.
+The isolated CI branches address the unavailable workflow-dispatch connection.
