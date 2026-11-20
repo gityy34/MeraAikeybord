@@ -230,5 +230,25 @@ The [test reports](https://github.com/gityy34/MeraAikeybord/actions/runs/4466969
 record zero failures, errors, and skips. Static review found no manifest,
 dependency, network, or typed-text logging changes. Dragging carries only an
 in-process tool identifier. Phone checks for swiping, drag-and-drop, layout size,
-and TalkBack remain pending. The run produced test reports only. The version
-remains 4.3-beta1-v4 until a new APK is approved.
+and TalkBack remain pending. The run produced test reports only.
+
+## Tools panel Debug APK revision 5
+
+The owner approved a Debug APK for phone testing. Build run 44672461276 used
+`eb2845d5d2e2d33869e468321b9defdc11cfa61d`, which adds only version metadata
+to the source that passed 58 tests. The APK is `HeliBoard_4.3-beta1-v5-debug.apk`
+with version code `4303` and size 27,337,201 bytes.
+[Download the Debug APK](https://github.com/gityy34/MeraAikeybord/actions/runs/44672461276/artifacts/14601195234).
+
+CI verified archive integrity, alignment, v1 and v2 signatures, the packaged
+toolbar and Urdu layout assets, and the absence of internet permission.
+The APK SHA-256 is
+`53f329ddfcaa6664a76e3b34e3ebab8d105a1a126a3348a4f9660a3f74fb5435`.
+Run 44673703549 matched that hash, installed the APK on an Android 11
+(API 30) emulator, and enabled and selected the keyboard as its input method.
+[Installation verification](https://github.com/gityy34/MeraAikeybord/actions/runs/44673703549).
+
+The Debug certificate differs from revision 4. Save a backup from Advanced
+settings before removing revision 4 to install revision 5. Physical phone
+checks for toolbar swipes, dragging, and TalkBack remain pending. The next
+newly approved APK revision is v6 with code 4304.
