@@ -295,3 +295,23 @@ The Debug certificate differs from revision 5. Save a backup from Advanced
 settings before removing revision 5 to install revision 6. Dragging and
 TalkBack on a physical phone remain pending. The next newly approved APK
 revision is v7 with code 4305.
+
+## Idle tools between the fixed toolbar controls
+
+In expandable toolbar mode, the center shows the selected shortcuts while
+idle. The regular toolbar order supplies the center when only the microphone
+or no center shortcut is pinned. The tools menu stays on the left and the
+microphone stays on the right when the editor and voice provider allow it.
+Composing and active suggestions use the center. English and Urdu sentence
+stops bring back the shortcuts during a normal sentence boundary. External
+suggestions keep their existing priority.
+
+On 2026-11-20 the owner approved targeted testing. Run 44717712143 compiled
+the Kotlin and Java sources at `8513b09ced04caa53a96b0debac59699ed246ab4`
+and passed all 64 tests. The run included 16 toolbar tests and 48 keyboard
+regression tests, with zero failures, errors, and skips.
+[Test reports](https://github.com/gityy34/MeraAikeybord/actions/runs/44717712143/artifacts/14620451908). Static review confirmed the
+edge-control order in the layout and that the manifest and dependencies were
+unchanged. The toolbar uses cached input state without adding text logging
+or network access. Device verification of this change and a newly approved APK
+build remain pending.
