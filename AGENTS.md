@@ -252,3 +252,20 @@ The Debug certificate differs from revision 4. Save a backup from Advanced
 settings before removing revision 4 to install revision 5. Physical phone
 checks for toolbar swipes, dragging, and TalkBack remain pending. The next
 newly approved APK revision is v6 with code 4304.
+
+## Tools panel bounds and shortcut positions
+
+The panel now ends at the last drawn key and keeps its paging and editing
+controls above the grid. The editor supports moves within the grid and between
+the grid and the shortcut row. Users can lock an individual shortcut in its
+slot and use the checkmark to save the layout. The typing strip reserves room
+for suggestions and displays shortcuts that fit beside them.
+
+On 2026-11-20 the owner approved targeted tests. Run 44695485487 compiled the
+Kotlin and Java sources at `6bc306118474222f03c71e78e273319f792c1624` and passed
+all 60 tests, including 12 toolbar tests and 48 keyboard regression tests.
+The [test reports](https://github.com/gityy34/MeraAikeybord/actions/runs/44695485487/artifacts/14610990363)
+record zero failures, errors, and skips. Ordered tool identifiers and slot
+locks are stored in local preferences. The manifest and dependency declarations
+are unchanged. Device checks for the panel bounds and drag gestures remain
+pending. This run produced test reports only.
