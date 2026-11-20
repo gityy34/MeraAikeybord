@@ -1,0 +1,55 @@
+name: Verify idle tools and keyboard suggestions
+on:
+  push:
+    branches: ['codex/ci-idle-toolbar-8513b09c']
+    paths: ['.github/workflows/verify-idle-toolbar-8513b09c.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    if: github.event.before == '8513b09ced04caa53a96b0debac59699ed246ab4'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: '8513b09ced04caa53a96b0debac59699ed246ab4'
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test toolbar panel and keyboard input
+        run: ./gradlew :app:testDebugUnitTest --tests '*ToolbarEditorTest' --tests '*UrduLayout*' --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*' --tests '*InputLogicTest.inputCode' --tests '*InputLogicTest.delete'
+      - name: Count executed tests
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+          suites = [ElementTree.parse(path).getroot() for path in Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
+          if not suites:
+              print('No test suites ran.')
+              raise SystemExit(1)
+          for key in ('tests', 'failures', 'errors', 'skipped'):
+              print(f'{key}: {sum(int(suite.get(key, 0)) for suite in suites)}')
+          for suite in suites:
+              print(f"{suite.get('name')}: {suite.get('tests')} tests")
+              for case in suite.findall('testcase'):
+                  for marker in ('failure', 'error'):
+                      detail = case.find(marker)
+                      if detail is not None:
+                          print(f"{suite.get('name')}.{case.get('name')}: {detail.get('message')}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: keyboard-idle-toolbar-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
