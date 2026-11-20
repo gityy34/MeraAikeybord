@@ -18,6 +18,15 @@
         <!-- Provide audio and haptic feedback by ourselves based on the keyboard settings.
              We just need to ignore the system's audio and haptic feedback settings. -->
         <ImageButton
+            android:id="@+id/suggestions_strip_tools_menu"
+            android:layout_width="44dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:scaleType="center"
+            android:src="@drawable/ic_toolbar_grid"
+            android:contentDescription="@string/toolbar_more_options"
+            style="?attr/suggestionWordStyle" />
+        <ImageButton
             android:id="@+id/suggestions_strip_toolbar_key"
             android:layout_width="@dimen/config_suggestions_strip_edge_key_width"
             android:layout_height="@dimen/config_suggestions_strip_edge_key_width"
@@ -64,14 +73,19 @@
             android:minWidth="0dp"
             style="?attr/suggestionWordStyle">
         </LinearLayout>
-        <ImageButton
-            android:id="@+id/suggestions_strip_tools_menu"
-            android:layout_width="48dp"
+        <HorizontalScrollView
+            android:id="@+id/toolbar_panel_shortcuts_scroller"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_gravity="center_vertical"
-            android:scaleType="center"
-            android:src="@drawable/ic_toolbar_more"
-            android:contentDescription="@string/toolbar_more_options"
-            style="?attr/suggestionWordStyle" />
+            android:layout_weight="1"
+            android:fillViewport="true"
+            android:scrollbars="none"
+            android:visibility="gone">
+            <LinearLayout
+                android:id="@+id/toolbar_panel_shortcuts"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
     </LinearLayout>
 </merge>

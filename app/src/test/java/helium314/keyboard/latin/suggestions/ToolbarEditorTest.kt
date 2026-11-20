@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.suggestions
 
+import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.common.Constants.Separators
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.ToolbarKey.*
@@ -70,6 +71,41 @@ class ToolbarEditorTest {
         assertEquals(3, pinnedToolbarCapacity(360, 88, 132, 36))
         assertEquals(4, pinnedToolbarCapacity(800, 88, 132, 36))
         assertEquals(0, pinnedToolbarCapacity(800, 88, 132, 0))
+    }
+
+    @Test
+    fun draggingFromGridInsertsBeforeTargetAndCanAppendToEmptyRow() {
+        val state = ToolbarEditorState(listOf(COPY, PASTE, UNDO), emptyList())
+        assertTrue(state.dropOnPins(COPY, null))
+        assertTrue(state.dropOnPins(PASTE, COPY))
+        assertTrue(state.dropOnPins(UNDO, null))
+        assertEquals(listOf(PASTE, COPY, UNDO), state.enabled)
+    }
+
+    @Test
+    fun draggingPinnedToolsToGridAndBackKeepsOneCopy() {
+        val state = ToolbarEditorState(listOf(COPY, PASTE, UNDO), listOf(COPY, PASTE, UNDO))
+        assertTrue(state.dropOnPins(COPY, null))
+        assertEquals(listOf(PASTE, UNDO, COPY), state.enabled)
+        assertTrue(state.dropOnTools(UNDO))
+        assertFalse(state.dropOnTools(UNDO))
+        assertFalse(state.dropOnPins(VOICE, null))
+        assertTrue(state.dropOnPins(UNDO, COPY))
+        assertEquals(listOf(PASTE, UNDO, COPY), state.enabled)
+    }
+
+    @Test
+    fun gridPaginatesTwoColumnsWithinAvailableKeyboardHeight() {
+        assertEquals(2, toolbarToolsPerPage(0, 54))
+        assertEquals(2, toolbarToolsPerPage(100, 54))
+        assertEquals(4, toolbarToolsPerPage(108, 54))
+        assertEquals(6, toolbarToolsPerPage(216, 54))
+        assertEquals(2, toolbarToolsPerPage(300, 0))
+    }
+
+    @Test
+    fun appearanceShortcutIsBlockedWhenDeviceIsLocked() {
+        assertTrue(KeyCode.isIsBlockedWhenLocked(KeyCode.APPEARANCE_SETTINGS))
     }
 
     private fun preference(vararg items: Pair<ToolbarKey, Boolean>) = items.joinToString(Separators.ENTRY) {

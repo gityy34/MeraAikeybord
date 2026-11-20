@@ -69,6 +69,8 @@ fun getCodeForToolbarKey(key: ToolbarKey) = Settings.getInstance().getCustomTool
     UNDO -> KeyCode.UNDO
     REDO -> KeyCode.REDO
     SETTINGS -> KeyCode.SETTINGS
+    TOOLBAR_APPEARANCE -> KeyCode.APPEARANCE_SETTINGS
+    NEXT_LANGUAGE -> KeyCode.LANGUAGE_SWITCH
     SELECT_ALL -> KeyCode.CLIPBOARD_SELECT_ALL
     SELECT_WORD -> KeyCode.CLIPBOARD_SELECT_WORD
     COPY -> KeyCode.CLIPBOARD_COPY
@@ -121,7 +123,8 @@ fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getC
 enum class ToolbarKey {
     VOICE, CLIPBOARD, NUMPAD, DPAD, UNDO, REDO, SETTINGS, SELECT_ALL, SELECT_WORD, COPY, CUT, PASTE, ONE_HANDED, FLOATING, SPLIT,
     INCOGNITO, AUTOCORRECT, CLEAR_CLIPBOARD, CLOSE_HISTORY, EMOJI, LEFT, RIGHT, UP, DOWN, WORD_LEFT, WORD_RIGHT,
-    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, BACKGROUND_GATHERING
+    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, BACKGROUND_GATHERING,
+    TOOLBAR_APPEARANCE, NEXT_LANGUAGE
 }
 
 enum class ToolbarMode {
@@ -196,7 +199,7 @@ internal fun saveToolbarSelection(
     val original = prefs.getString(pref, default) ?: default
     val enabled = getEnabledToolbarKeys(prefs, pref, default)
     val value = toolbarSelectionPreference(original, enabled, available, selected)
-    if (value != original) prefs.edit { putString(pref, value) }
+    if (value != original || !prefs.contains(pref)) prefs.edit { putString(pref, value) }
 }
 
 internal fun toolbarSelectionPreference(

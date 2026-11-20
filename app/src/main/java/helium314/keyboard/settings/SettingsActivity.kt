@@ -127,7 +127,9 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                     else if (showWelcomeWizard) {
                         WelcomeWizard(close = { showWelcomeWizard = false }, finish = this::finish)
                     } else {
-                        SettingsNavHost(onClickBack = { this.finish() })
+                        val destination = if (intent?.getBooleanExtra(EXTRA_OPEN_APPEARANCE, false) == true)
+                            SettingsDestination.Appearance else null
+                        SettingsNavHost(onClickBack = { this.finish() }, startDestination = destination)
                         if (crashReports.isNotEmpty()) {
                             val ctx = LocalContext.current
                             ConfirmationDialog(
@@ -235,6 +237,8 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     }
 
     companion object {
+        const val EXTRA_OPEN_APPEARANCE = "helium314.keyboard.settings.OPEN_APPEARANCE"
+
         // public write so compose previews can show the screens
         // having it in a companion object is not ideal as it will stay in memory even after settings are closed
         // but it's small enough to not care

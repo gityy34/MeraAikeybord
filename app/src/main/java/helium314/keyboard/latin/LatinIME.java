@@ -78,6 +78,7 @@ import helium314.keyboard.latin.utils.SubtypeSettings;
 import helium314.keyboard.latin.utils.SubtypeState;
 import helium314.keyboard.latin.utils.ToolbarMode;
 import helium314.keyboard.settings.SettingsActivity2;
+import helium314.keyboard.settings.SettingsActivity;
 import kotlin.Unit;
 
 import java.util.ArrayList;
@@ -1502,6 +1503,9 @@ public class LatinIME extends InputMethodService implements
     // Hooks for hardware keyboard
     @Override
     public boolean onKeyDown(final int keyCode, final KeyEvent keyEvent) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && hasSuggestionStripView()
+                && mSuggestionStripView.isShowingToolbarPanel())
+            return true;
         if (mKeyboardActionListener.onKeyDown(keyCode, keyEvent))
             return true;
         return super.onKeyDown(keyCode, keyEvent);
@@ -1509,6 +1513,9 @@ public class LatinIME extends InputMethodService implements
 
     @Override
     public boolean onKeyUp(final int keyCode, final KeyEvent keyEvent) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && hasSuggestionStripView()
+                && mSuggestionStripView.handleToolbarBack())
+            return true;
         if (mKeyboardActionListener.onKeyUp(keyCode, keyEvent))
             return true;
         return super.onKeyUp(keyCode, keyEvent);
@@ -1524,11 +1531,20 @@ public class LatinIME extends InputMethodService implements
     }
 
     public void launchSettings() {
+        launchSettings(false);
+    }
+
+    public void launchAppearanceSettings() {
+        launchSettings(true);
+    }
+
+    private void launchSettings(boolean openAppearance) {
         mInputLogic.commitTyped(mSettings.getCurrent(), LastComposedWord.NOT_A_SEPARATOR);
         requestHideSelf(0);
         closeMainKeyboard();
         Intent intent = new Intent();
         intent.setClass(LatinIME.this, SettingsActivity2.class);
+        if (openAppearance) intent.putExtra(SettingsActivity.EXTRA_OPEN_APPEARANCE, true);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP);

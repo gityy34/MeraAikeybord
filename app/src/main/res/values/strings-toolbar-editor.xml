@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="toolbar_more_options">Toolbar options</string>
-    <string name="toolbar_more_tools">More tools</string>
-    <string name="toolbar_edit_tools">Edit toolbar</string>
+    <string name="toolbar_more_options">Open keyboard tools</string>
+    <string name="toolbar_close_tools">Close keyboard tools</string>
+    <string name="toolbar_panel_title">Keyboard tools</string>
     <string name="toolbar_edit_pinned">Edit pinned tools</string>
     <string name="toolbar_dock_keyboard">Dock keyboard</string>
-    <string name="toolbar_editor_help">Check the tools to show. Hold a handle and drag to reorder, or use the move buttons.</string>
-    <string name="toolbar_editor_pinned_help">Check the tools to pin. Hold and drag a handle to reorder. Pins that do not fit appear in More tools.</string>
+    <string name="toolbar_editor_pinned_help">Hold and drag tools between the shortcut row and grid. Tap a tool to pin or unpin it.</string>
+    <string name="toolbar_pin_drop_zone">Drop tools here to pin</string>
     <string name="toolbar_editor_done">Done</string>
-    <string name="toolbar_move_up">Move %1$s up</string>
-    <string name="toolbar_move_down">Move %1$s down</string>
-    <string name="toolbar_drag_tool">Drag %1$s to reorder</string>
+    <string name="toolbar_pin_tool">Pin %1$s</string>
+    <string name="toolbar_unpin_tool">Unpin %1$s</string>
+    <string name="toolbar_move_earlier">Move %1$s earlier</string>
+    <string name="toolbar_move_later">Move %1$s later</string>
+    <string name="toolbar_page">Page %1$d of %2$d</string>
+    <string name="toolbar_previous_page">Previous tools page</string>
+    <string name="toolbar_next_page">Next tools page</string>
+    <string name="toolbar_appearance">Theme and size</string>
+    <string name="next_language">Next language</string>
 </resources>

@@ -33,6 +33,7 @@ class KeyboardWrapperView @JvmOverloads constructor(
     private lateinit var stopOneHandedModeBtn: ImageButton
     private lateinit var switchOneHandedModeBtn: ImageButton
     private lateinit var resizeOneHandedModeBtn: ImageButton
+    private lateinit var toolbarToolsPanel: View
 
     var oneHandedModeEnabled = false
         set(enabled) {
@@ -54,6 +55,7 @@ class KeyboardWrapperView @JvmOverloads constructor(
         super.onFinishInflate()
         val keyboardIconsSet = KeyboardIconsSet.instance
         keyboardIconsSet.loadIcons(context)
+        toolbarToolsPanel = findViewById(R.id.toolbar_tools_panel)
         stopOneHandedModeBtn = findViewById(R.id.btn_stop_one_handed_mode)
         stopOneHandedModeBtn.setImageDrawable(keyboardIconsSet.getNewDrawable(KeyboardIconsSet.NAME_STOP_ONEHANDED_KEY, context))
         stopOneHandedModeBtn.visibility = GONE
@@ -162,5 +164,8 @@ class KeyboardWrapperView @JvmOverloads constructor(
         stopOneHandedModeBtn.setLayout((keyboardView.measuredHeight * 0.2f).toInt())
         switchOneHandedModeBtn.setLayout((keyboardView.measuredHeight * 0.5f).toInt())
         resizeOneHandedModeBtn.setLayout((keyboardView.measuredHeight * 0.8f).toInt())
+        if (toolbarToolsPanel.visibility == VISIBLE) {
+            toolbarToolsPanel.layout(0, 0, toolbarToolsPanel.measuredWidth, toolbarToolsPanel.measuredHeight)
+        }
     }
 }

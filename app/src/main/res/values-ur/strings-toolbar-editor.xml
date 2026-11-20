@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="toolbar_more_options">ٹول بار کے اختیارات</string>
-    <string name="toolbar_more_tools">مزید ٹولز</string>
-    <string name="toolbar_edit_tools">ٹول بار بدلیں</string>
+    <string name="toolbar_more_options">کی بورڈ ٹولز کھولیں</string>
+    <string name="toolbar_close_tools">کی بورڈ ٹولز بند کریں</string>
+    <string name="toolbar_panel_title">کی بورڈ ٹولز</string>
     <string name="toolbar_edit_pinned">پِن شدہ ٹولز بدلیں</string>
     <string name="toolbar_dock_keyboard">کی بورڈ واپس نیچے لگائیں</string>
-    <string name="toolbar_editor_help">دکھانے کے لیے ٹول منتخب کریں۔ ترتیب بدلنے کے لیے ہینڈل دبا کر کھینچیں یا اوپر نیچے کے بٹن دبائیں۔</string>
-    <string name="toolbar_editor_pinned_help">پِن کرنے کے لیے ٹول منتخب کریں۔ ترتیب بدلنے کے لیے ہینڈل دبا کر کھینچیں۔ باقی پِن شدہ ٹول مزید ٹولز میں ملیں گے۔</string>
+    <string name="toolbar_editor_pinned_help">ٹول کو دیر تک دبا کر اوپر والی قطار یا گرڈ میں کھینچیں۔ پِن کرنے یا ہٹانے کے لیے ایک ٹچ بھی کافی ہے۔</string>
+    <string name="toolbar_pin_drop_zone">پِن کرنے کے لیے ٹول یہاں چھوڑیں</string>
     <string name="toolbar_editor_done">ہو گیا</string>
-    <string name="toolbar_move_up">%1$s اوپر لے جائیں</string>
-    <string name="toolbar_move_down">%1$s نیچے لے جائیں</string>
-    <string name="toolbar_drag_tool">ترتیب بدلنے کے لیے %1$s کھینچیں</string>
+    <string name="toolbar_pin_tool">%1$s پِن کریں</string>
+    <string name="toolbar_unpin_tool">%1$s پِن سے ہٹائیں</string>
+    <string name="toolbar_move_earlier">%1$s کو ترتیب میں پہلے لائیں</string>
+    <string name="toolbar_move_later">%1$s کو ترتیب میں بعد میں لے جائیں</string>
+    <string name="toolbar_page">صفحہ %1$d از %2$d</string>
+    <string name="toolbar_previous_page">ٹولز کا پچھلا صفحہ</string>
+    <string name="toolbar_next_page">ٹولز کا اگلا صفحہ</string>
+    <string name="toolbar_appearance">تھیم اور سائز</string>
+    <string name="next_language">اگلی زبان</string>
 </resources>

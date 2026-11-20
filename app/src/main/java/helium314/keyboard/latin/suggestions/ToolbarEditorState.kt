@@ -27,6 +27,16 @@ internal class ToolbarEditorState(
         return true
     }
 
+    fun dropOnPins(key: ToolbarKey, target: ToolbarKey?): Boolean {
+        if (key !in available || key == target) return false
+        if (isEnabled(key)) return move(key, target ?: selection.last())
+        val index = target?.let(selection::indexOf) ?: -1
+        selection.add(if (index < 0) selection.size else index, key)
+        return true
+    }
+
+    fun dropOnTools(key: ToolbarKey) = selection.remove(key)
+
     fun neighbor(key: ToolbarKey, offset: Int): ToolbarKey? {
         val index = selection.indexOf(key)
         return if (index < 0) null else selection.getOrNull(index + offset)
@@ -35,3 +45,6 @@ internal class ToolbarEditorState(
 
 internal fun pinnedToolbarCapacity(width: Int, controlsWidth: Int, suggestionWidth: Int, keyWidth: Int): Int =
     if (keyWidth <= 0) 0 else ((width - controlsWidth - suggestionWidth) / keyWidth).coerceIn(0, 4)
+
+internal fun toolbarToolsPerPage(height: Int, rowHeight: Int): Int =
+    if (rowHeight <= 0) 2 else (height / rowHeight).coerceIn(1, 3) * 2

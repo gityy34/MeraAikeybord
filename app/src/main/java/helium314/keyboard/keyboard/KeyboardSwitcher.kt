@@ -291,6 +291,7 @@ class KeyboardSwitcher private constructor() {
     }
 
     fun onHideWindow() {
+        inputView?.suggestionStripView?.dismissToolbarControls()
         inputView?.keyboardView?.onHideWindow()
     }
 
@@ -303,6 +304,7 @@ class KeyboardSwitcher private constructor() {
 
     private fun setMainKeyboardFrame(settingsValues: SettingsValues, toggleState: KeyboardSwitchState) {
         val inputView = inputView ?: return
+        inputView.suggestionStripView.dismissToolbarControls()
         val isGone = isImeSuppressedByHardwareKeyboard(settingsValues, toggleState)
         inputView.stripContainer.isVisible = latinIME.hasSuggestionStripView()
         PointerTracker.switchTo(inputView.keyboardView)

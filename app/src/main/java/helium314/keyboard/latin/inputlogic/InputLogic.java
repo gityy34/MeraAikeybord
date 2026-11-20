@@ -746,6 +746,9 @@ public final class InputLogic {
             case KeyCode.SETTINGS:
                 mLatinIME.launchSettings();
                 break;
+            case KeyCode.APPEARANCE_SETTINGS:
+                mLatinIME.launchAppearanceSettings();
+                break;
             case KeyCode.ACTION_NEXT:
                 performEditorAction(EditorInfo.IME_ACTION_NEXT);
                 break;
