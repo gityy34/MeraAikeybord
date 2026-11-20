@@ -41,6 +41,7 @@ import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.AudioAndHapticFeedbackManager
+import helium314.keyboard.latin.InputStyle
 import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
@@ -125,9 +126,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     // toolbar views, drawables and setup
+    private val stripWrapper: LinearLayout = findViewById(R.id.suggestions_strip_wrapper)
     private val toolbar: ViewGroup = findViewById(R.id.toolbar)
     private val toolbarContainer: View = findViewById(R.id.toolbar_container)
     private val pinnedKeys: ViewGroup = findViewById(R.id.pinned_keys)
+    private val voiceSlot: ViewGroup = findViewById(R.id.toolbar_voice_slot)
     private val suggestionsStrip: ViewGroup = findViewById(R.id.suggestions_strip)
     private val toolbarExpandKey = findViewById<ImageButton>(R.id.suggestions_strip_toolbar_key)
     private val toolbarMenuKey = findViewById<ImageButton>(R.id.suggestions_strip_tools_menu)
@@ -139,6 +142,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private var obscuredViews = emptyList<Pair<View, Int>>()
     private var revealedWrapper = false
     private var normalToolbarVisible = false
+    private var composingInEditor = false
+    private var atSentenceBoundary = true
     private var hasConfiguredPins = false
     private var configuredPins = emptyList<ToolbarKey>()
     private var configuredPinLocks = emptyMap<ToolbarKey, Int>()
@@ -180,6 +185,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbarMenuKey.setOnClickListener { onToolsButtonPressed() }
         colors.setColor(toolbarMenuKey, ColorType.TOOL_BAR_KEY)
         colors.setBackground(toolbarMenuKey, ColorType.STRIP_BACKGROUND)
+        addToolbarButton(voiceSlot, ToolbarKey.VOICE)
         panelShortcutScroller.setOnDragListener { _, event -> onShortcutDrag(event) }
         refreshToolbarButtons()
         toolbarContainer.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
@@ -243,6 +249,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
         layoutDirection = newLayoutDirection
         suggestionsStrip.layoutDirection = newLayoutDirection
+        toolbarContainer.layoutDirection = newLayoutDirection
+        pinnedKeys.layoutDirection = newLayoutDirection
+        panelShortcutScroller.layoutDirection = newLayoutDirection
         toolbarPanel?.layoutDirection = newLayoutDirection
     }
 
@@ -251,18 +260,26 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         applyStripVisibility()
     }
 
+    fun updateToolbarInputState(composing: Boolean, beforeCursor: Int) {
+        val boundary = isIdleToolbarBoundary(beforeCursor)
+        if (composingInEditor == composing && atSentenceBoundary == boundary) return
+        composingInEditor = composing
+        atSentenceBoundary = boundary
+        if (Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE) applyStripVisibility()
+    }
+
     private fun applyStripVisibility() {
         val panelOpen = isShowingToolbarPanel
-        val expandable = Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE
-        val customizedShortcuts = canOpenToolbarControls() && expandable && hasConfiguredPins
-        val emptySuggestionRow = canOpenToolbarControls() &&
-            expandable &&
-            !isExternalSuggestionVisible && suggestedWords.isEmpty()
-        val showQuickTools = !customizedShortcuts && (normalToolbarVisible || emptySuggestionRow) &&
-            toolbar.children.any { it.isVisible }
-        pinnedKeys.isVisible = !panelOpen && !showQuickTools
+        val settings = Settings.getValues()
+        val contextual = settings.mToolbarMode == ToolbarMode.EXPANDABLE && canOpenToolbarControls()
+        val needsQuickTools = if (contextual)
+            shouldShowIdleToolbar(suggestedWords, composingInEditor, atSentenceBoundary, isExternalSuggestionVisible)
+        else normalToolbarVisible
+        val showQuickTools = !panelOpen && needsQuickTools && toolbar.children.any { it.isVisible }
+        pinnedKeys.isVisible = !panelOpen && !showQuickTools && !contextual
         suggestionsStrip.isVisible = !panelOpen && !showQuickTools
-        toolbarContainer.isVisible = !panelOpen && showQuickTools
+        toolbarContainer.isVisible = showQuickTools
+        voiceSlot.isVisible = !panelOpen && contextual && settings.mShowsVoiceInputKey
         panelShortcutScroller.isVisible = panelOpen
         if (DEBUG_SUGGESTIONS) {
             for (view in debugInfoViews) {
@@ -445,7 +462,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     private fun onLongClickToolbarKey(view: View) {
         val tag = view.tag as? ToolbarKey ?: return
-        if (!Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys) {
+        if (!Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys || view.parent === voiceSlot) {
             onLongClickToolbarKey(view) { code, isRepeat -> listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, isRepeat) }
         } else if (view.parent === toolbar) {
             AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
@@ -592,6 +609,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val toolbarIsExpandable = settingsValues.mToolbarMode == ToolbarMode.EXPANDABLE
         val incognito = settingsValues.mIncognitoModeEnabled
         toolbarMenuKey.isVisible = showTools
+        // Keep the edge controls in place while the center follows the input language.
+        stripWrapper.layoutDirection = if (showTools && toolbarIsExpandable) LAYOUT_DIRECTION_LTR
+            else LAYOUT_DIRECTION_INHERIT
         val editing = toolbarDraft != null
         val icon = when {
             editing -> R.drawable.sym_keyboard_done_rounded
@@ -809,6 +829,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
 
     private fun visiblePinnedKeys(): List<ToolbarKey?> {
+        if (Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE) return emptyList()
         val keyWidth = toolbarKeyLayoutParams.width
         val reservedWidth = (if (toolbarMenuKey.isVisible) toolbarMenuKey.layoutParams.width else 0) +
             (if (toolbarExpandKey.isVisible) toolbarExpandKey.layoutParams.width else 0)
@@ -819,22 +840,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     private fun refreshToolbarButtons() {
         val prefs = context.prefs()
-        val keys = if (Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE &&
-            prefs.contains(Settings.PREF_PINNED_TOOLBAR_KEYS))
-            getPinnedToolbarKeys(prefs)
-        else getEnabledToolbarKeys(prefs)
-        toolbar.removeAllViews()
-        for (key in keys.distinct()) addToolbarButton(toolbar, key)
-        toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = Settings.getValues().mShowsVoiceInputKey
-        refreshPinConfiguration()
-        applyStripVisibility()
-    }
-
-    private fun refreshPinConfiguration() {
-        val prefs = context.prefs()
         hasConfiguredPins = prefs.contains(Settings.PREF_PINNED_TOOLBAR_KEYS)
         configuredPins = getPinnedToolbarKeys(prefs).distinct()
         configuredPinLocks = getToolbarPinLocks(prefs)
+        val regular = getEnabledToolbarKeys(prefs)
+        val keys = if (Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE)
+            idleToolbarSlots(configuredPins, configuredPinLocks, regular)
+        else regular.distinct()
+        toolbar.removeAllViews()
+        for (key in keys) {
+            if (key == null) toolbar.addView(View(context), LinearLayout.LayoutParams(toolbarKeyLayoutParams))
+            else addToolbarButton(toolbar, key)
+        }
+        toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = Settings.getValues().mShowsVoiceInputKey
         if (Settings.getValues().mQuickPinToolbarKeys) {
             for (index in 0 until toolbar.childCount) {
                 val button = toolbar.getChildAt(index)
@@ -845,6 +863,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             }
         }
         refreshPinnedKeys()
+        applyStripVisibility()
     }
 
     private fun refreshPinnedKeys() {
@@ -884,4 +903,28 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         private const val DEBUG_INFO_TEXT_SIZE_IN_DIP = 6.5f
         private val TAG = SuggestionStripView::class.java.simpleName
     }
+}
+
+internal fun isIdleToolbarBoundary(beforeCursor: Int): Boolean =
+    beforeCursor == Constants.NOT_A_CODE || beforeCursor == Constants.CODE_ENTER ||
+        beforeCursor == Constants.CODE_PERIOD || beforeCursor == '۔'.code
+
+internal fun shouldShowIdleToolbar(
+    suggestions: SuggestedWords,
+    composing: Boolean,
+    atSentenceBoundary: Boolean,
+    hasExternalSuggestion: Boolean,
+): Boolean = !composing && !hasExternalSuggestion &&
+    (suggestions.isEmpty() || suggestions.inputStyle == InputStyle.BEGINNING_OF_SENTENCE_PREDICTION ||
+        (atSentenceBoundary && (suggestions is PunctuationSuggestions || suggestions.isPrediction)))
+
+internal fun idleToolbarSlots(
+    pins: List<ToolbarKey>,
+    locks: Map<ToolbarKey, Int>,
+    regular: List<ToolbarKey>,
+): List<ToolbarKey?> {
+    val shortcuts = toolbarPinSlots(pins, locks)
+        .filterNot { it == ToolbarKey.VOICE || it == ToolbarKey.CLOSE_HISTORY }
+        .dropLastWhile { it == null }
+    return shortcuts.ifEmpty { regular.filterNot { it == ToolbarKey.VOICE || it == ToolbarKey.CLOSE_HISTORY }.distinct() }
 }

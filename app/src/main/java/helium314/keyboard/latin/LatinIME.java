@@ -1332,6 +1332,7 @@ public class LatinIME extends InputMethodService implements
                 || currentSettingsValues.mInputAttributes.mApplicationSpecifiedCompletionOn
                 // We should clear the contextual strip if there is no suggestion from dictionaries.
                 || noSuggestionsFromDictionaries) {
+            updateToolbarInputState();
             mSuggestionStripView.setSuggestions(suggestedWords,
                     mRichImm.getCurrentSubtype().isRtlSubtype());
             // Auto hide the toolbar if dictionary suggestions are available
@@ -1362,6 +1363,16 @@ public class LatinIME extends InputMethodService implements
         if (hasSuggestionStripView()) {
             mSuggestionStripView.setToolbarVisibility(false);
         }
+    }
+
+    private void updateToolbarInputState() {
+        if (!hasSuggestionStripView() || mSettings.getCurrent().mToolbarMode != ToolbarMode.EXPANDABLE)
+            return;
+        int beforeCursor = mInputLogic.mConnection.getCodePointBeforeCursor();
+        if (beforeCursor == Constants.CODE_SPACE) {
+            beforeCursor = mInputLogic.mConnection.getCharBeforeBeforeCursor();
+        }
+        mSuggestionStripView.updateToolbarInputState(mInputLogic.getComposingLength() > 0, beforeCursor);
     }
 
     // Called from {@link SuggestionStripView} through the {@link SuggestionStripView#Listener}
@@ -1455,6 +1466,7 @@ public class LatinIME extends InputMethodService implements
             } // SHIFT_NO_UPDATE
         }
         if (inputTransaction.requiresUpdateSuggestions()) {
+            updateToolbarInputState();
             InputStyle inputStyle;
             if (inputTransaction.getEvent().isSuggestionStripPress()) {
                 // Suggestion strip press: no input.

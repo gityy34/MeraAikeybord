@@ -2,7 +2,10 @@
 package helium314.keyboard.latin.suggestions
 
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
+import helium314.keyboard.latin.InputStyle
+import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.Constants.Separators
+import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.ToolbarKey.*
 import helium314.keyboard.latin.utils.toolbarSelectionPreference
@@ -141,6 +144,52 @@ class ToolbarEditorTest {
     @Test
     fun appearanceShortcutIsBlockedWhenDeviceIsLocked() {
         assertTrue(KeyCode.isIsBlockedWhenLocked(KeyCode.APPEARANCE_SETTINGS))
+    }
+
+    @Test
+    fun aPinnedMicrophoneDoesNotReplaceIdleToolsOrDuplicateTheVoiceButton() {
+        val regular = listOf(VOICE, CLIPBOARD, EMOJI, UNDO, SETTINGS, CLIPBOARD)
+        assertEquals(listOf(CLIPBOARD, EMOJI, UNDO, SETTINGS), idleToolbarSlots(listOf(VOICE), mapOf(VOICE to 0), regular))
+    }
+
+    @Test
+    fun idleToolbarUsesChosenShortcutsInTheirSavedSlots() {
+        val pins = listOf(VOICE, PASTE, UNDO)
+        assertEquals(listOf(PASTE, null, UNDO), idleToolbarSlots(pins, mapOf(UNDO to 3), listOf(SETTINGS)))
+    }
+
+    @Test
+    fun idleToolsAppearOnOpeningAndAfterEitherFullStop() {
+        val punctuation = PunctuationSuggestions.newPunctuationSuggestions(arrayOf("!", "?"))
+        for (beforeCursor in listOf(Constants.NOT_A_CODE, Constants.CODE_ENTER, '.'.code, '۔'.code)) {
+            assertTrue(isIdleToolbarBoundary(beforeCursor))
+            assertTrue(shouldShowIdleToolbar(punctuation, false, isIdleToolbarBoundary(beforeCursor), false))
+        }
+        assertTrue(shouldShowIdleToolbar(SuggestedWords.emptyInstance, false, true, false))
+        assertTrue(shouldShowIdleToolbar(suggestions(InputStyle.PREDICTION), false, true, false))
+        assertTrue(shouldShowIdleToolbar(suggestions(InputStyle.BEGINNING_OF_SENTENCE_PREDICTION), false, false, false))
+        assertFalse(isIdleToolbarBoundary(','.code))
+        assertFalse(shouldShowIdleToolbar(punctuation, false, false, false))
+    }
+
+    @Test
+    fun composingAndGenuineSuggestionsKeepTheCenterAvailableForSuggestions() {
+        assertFalse(shouldShowIdleToolbar(SuggestedWords.emptyInstance, true, true, false))
+        assertFalse(shouldShowIdleToolbar(suggestions(InputStyle.TYPING), true, false, false))
+        assertFalse(shouldShowIdleToolbar(suggestions(InputStyle.RECORRECTION), false, false, false))
+        assertFalse(shouldShowIdleToolbar(suggestions(InputStyle.PREDICTION), false, false, false))
+        assertFalse(shouldShowIdleToolbar(suggestions(InputStyle.APPLICATION_SPECIFIED), false, true, false))
+        assertFalse(shouldShowIdleToolbar(SuggestedWords.emptyInstance, false, true, true))
+    }
+
+    private fun suggestions(inputStyle: InputStyle): SuggestedWords {
+        val word = SuggestedWordInfo(
+            "word", null, 0, SuggestedWordInfo.KIND_CORRECTION, Dictionary.DICTIONARY_HARDCODED,
+            SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE,
+        )
+        return SuggestedWords(
+            listOf(word), null, null, false, false, false, inputStyle, SuggestedWords.NOT_A_SEQUENCE_NUMBER,
+        )
     }
 
     private fun preference(vararg items: Pair<ToolbarKey, Boolean>) = items.joinToString(Separators.ENTRY) {

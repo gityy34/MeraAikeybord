@@ -87,5 +87,11 @@
                 android:layout_height="match_parent"
                 android:orientation="horizontal" />
         </HorizontalScrollView>
+        <LinearLayout
+            android:id="@+id/toolbar_voice_slot"
+            android:layout_width="44dp"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:visibility="gone" />
     </LinearLayout>
 </merge>
