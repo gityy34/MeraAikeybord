@@ -1,0 +1,55 @@
+name: Verify toolbar editor fcc98c60
+on:
+  push:
+    branches: ['codex/ci-toolbar-editor-fcc98c60']
+    paths: ['.github/workflows/verify-toolbar-editor-fcc98c60.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    if: github.event.before == 'fcc98c60437c2447415c85fc5e1a6e39a6674f15'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'fcc98c60437c2447415c85fc5e1a6e39a6674f15'
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test toolbar and keyboard input
+        run: ./gradlew :app:testDebugUnitTest --tests '*ToolbarEditorTest' --tests '*UrduLayout*' --tests '*RomanUrdu*' --tests '*InputLogicTest.romanUrdu*' --tests '*InputLogicTest.inputCode' --tests '*InputLogicTest.delete'
+      - name: Count executed tests
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+          suites = [ElementTree.parse(path).getroot() for path in Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
+          if not suites:
+              print('No test suites ran.')
+              raise SystemExit(1)
+          for key in ('tests', 'failures', 'errors', 'skipped'):
+              print(f'{key}: {sum(int(suite.get(key, 0)) for suite in suites)}')
+          for suite in suites:
+              print(f"{suite.get('name')}: {suite.get('tests')} tests")
+              for case in suite.findall('testcase'):
+                  for marker in ('failure', 'error'):
+                      detail = case.find(marker)
+                      if detail is not None:
+                          print(f"{suite.get('name')}.{case.get('name')}: {detail.get('message')}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: toolbar-editor-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
