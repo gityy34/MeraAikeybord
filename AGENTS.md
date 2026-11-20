@@ -213,3 +213,22 @@ Its SHA-256 is
 The Debug certificate differs from v3. Back up the old test app's settings
 before removing it to install v4. Emulator installation was unavailable because
 the runner lacked KVM access. The next newly approved APK is v5 with code 4303.
+
+## Keyboard tools panel
+
+The four-square toolbar button opens a two-column tools panel over the keyboard
+area. The pencil opens an editor for pinned shortcuts. Users can drag between
+the available tools and shortcuts, reorder with accessibility actions, and save
+with the checkmark. The panel uses the existing keyboard theme and actions, with
+shortcuts to Appearance settings and the next language. It closes when input
+ends and is unavailable in password fields or while the device is locked.
+
+On 2026-11-20 the owner approved targeted tests. Run 44669694421 compiled the
+Kotlin and Java sources at `5245d800540cd25baf9621280bf2da9290ba0ed7` and passed
+all 58 tests, including 10 toolbar tests and 48 keyboard regression tests.
+The [test reports](https://github.com/gityy34/MeraAikeybord/actions/runs/44669694421/artifacts/14599178942)
+record zero failures, errors, and skips. Static review found no manifest,
+dependency, network, or typed-text logging changes. Dragging carries only an
+in-process tool identifier. Phone checks for swiping, drag-and-drop, layout size,
+and TalkBack remain pending. The run produced test reports only. The version
+remains 4.3-beta1-v4 until a new APK is approved.
