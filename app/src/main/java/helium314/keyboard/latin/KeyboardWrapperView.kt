@@ -131,6 +131,10 @@ class KeyboardWrapperView @JvmOverloads constructor(
         }
     }
 
+    override fun onInterceptTouchEvent(event: MotionEvent): Boolean =
+        (toolbarToolsPanel.visibility == VISIBLE && event.y >= toolbarToolsPanel.bottom) ||
+            super.onInterceptTouchEvent(event)
+
     @SuppressLint("RtlHardcoded")
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         if (!oneHandedModeEnabled) {

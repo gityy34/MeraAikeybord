@@ -14,9 +14,9 @@ import kotlin.test.assertTrue
 
 class ToolbarEditorTest {
     @Test
-    fun draftPreservesOrderAndDisplaysAvailableToolsAfterSelection() {
+    fun draftPreservesOrderAndKeepsUnpinnedToolsInTheGrid() {
         val state = ToolbarEditorState(listOf(UNDO, COPY, PASTE, SETTINGS), listOf(PASTE, UNDO, PASTE, VOICE))
-        assertEquals(listOf(PASTE, UNDO, COPY, SETTINGS), state.items)
+        assertEquals(listOf(COPY, SETTINGS), state.tools)
         assertEquals(listOf(PASTE, UNDO), state.enabled)
         assertFalse(state.isEnabled(VOICE))
     }
@@ -24,25 +24,25 @@ class ToolbarEditorTest {
     @Test
     fun droppingOrUsingMoveButtonsChangesOnlyEnabledToolOrder() {
         val state = ToolbarEditorState(listOf(COPY, CUT, PASTE, UNDO), listOf(CUT, PASTE, COPY))
-        assertTrue(state.move(CUT, COPY))
+        assertTrue(state.dropOnPins(CUT, 2))
         assertEquals(listOf(PASTE, COPY, CUT), state.enabled)
-        assertEquals(COPY, state.neighbor(CUT, -1))
-        assertNull(state.neighbor(CUT, 1))
-        assertFalse(state.move(COPY, UNDO))
-        assertFalse(state.move(UNDO, PASTE))
-        assertFalse(state.move(PASTE, PASTE))
+        assertEquals(1, state.neighboringPinSlot(CUT, -1))
+        assertNull(state.neighboringPinSlot(CUT, 1))
+        assertFalse(state.dropOnPins(COPY, 1))
+        assertFalse(state.dropOnPins(PASTE, 0))
+        assertFalse(state.dropOnPins(VOICE, 0))
         assertEquals(listOf(PASTE, COPY, CUT), state.enabled)
     }
 
     @Test
     fun togglingToolsKeepsRemainingOrderAndIgnoresUnavailableTools() {
         val state = ToolbarEditorState(listOf(COPY, CUT, PASTE), listOf(PASTE, COPY))
-        state.setEnabled(PASTE, false)
-        state.setEnabled(CUT, true)
-        state.setEnabled(CUT, true)
-        state.setEnabled(VOICE, true)
+        assertTrue(state.dropOnTools(PASTE))
+        assertTrue(state.dropOnPins(CUT, null))
+        assertFalse(state.dropOnPins(CUT, null))
+        assertFalse(state.dropOnPins(VOICE, null))
         assertEquals(listOf(COPY, CUT), state.enabled)
-        assertEquals(listOf(COPY, CUT, PASTE), state.items)
+        assertEquals(listOf(PASTE), state.tools)
     }
 
     @Test
@@ -69,7 +69,7 @@ class ToolbarEditorTest {
         assertEquals(0, pinnedToolbarCapacity(180, 88, 132, 36))
         assertEquals(2, pinnedToolbarCapacity(320, 88, 132, 36))
         assertEquals(3, pinnedToolbarCapacity(360, 88, 132, 36))
-        assertEquals(4, pinnedToolbarCapacity(800, 88, 132, 36))
+        assertEquals(16, pinnedToolbarCapacity(800, 88, 132, 36))
         assertEquals(0, pinnedToolbarCapacity(800, 88, 132, 0))
     }
 
@@ -77,7 +77,7 @@ class ToolbarEditorTest {
     fun draggingFromGridInsertsBeforeTargetAndCanAppendToEmptyRow() {
         val state = ToolbarEditorState(listOf(COPY, PASTE, UNDO), emptyList())
         assertTrue(state.dropOnPins(COPY, null))
-        assertTrue(state.dropOnPins(PASTE, COPY))
+        assertTrue(state.dropOnPins(PASTE, 0))
         assertTrue(state.dropOnPins(UNDO, null))
         assertEquals(listOf(PASTE, COPY, UNDO), state.enabled)
     }
@@ -90,8 +90,43 @@ class ToolbarEditorTest {
         assertTrue(state.dropOnTools(UNDO))
         assertFalse(state.dropOnTools(UNDO))
         assertFalse(state.dropOnPins(VOICE, null))
-        assertTrue(state.dropOnPins(UNDO, COPY))
+        assertTrue(state.dropOnPins(UNDO, 1))
         assertEquals(listOf(PASTE, UNDO, COPY), state.enabled)
+    }
+
+    @Test
+    fun gridToolsMoveInBothDirectionsAndRestoreInTheSavedOrder() {
+        val available = listOf(COPY, CUT, PASTE, UNDO, VOICE)
+        val state = ToolbarEditorState(available, listOf(VOICE))
+        assertTrue(state.dropOnTools(COPY, UNDO))
+        assertEquals(listOf(CUT, PASTE, UNDO, COPY), state.tools)
+        assertTrue(state.dropOnTools(UNDO, CUT))
+        assertTrue(state.dropOnTools(VOICE, PASTE))
+        assertEquals(listOf(UNDO, CUT, VOICE, PASTE, COPY), state.tools)
+        assertEquals(CUT, state.neighboringTool(VOICE, -1))
+        val reopened = ToolbarEditorState(available, state.enabled, state.tools)
+        assertEquals(state.tools, reopened.tools)
+    }
+
+    @Test
+    fun lockedShortcutKeepsItsSlotUntilUnlocked() {
+        val available = listOf(PASTE, VOICE, UNDO)
+        val state = ToolbarEditorState(available, available)
+        assertTrue(state.setLocked(VOICE, true))
+        assertFalse(state.dropOnPins(VOICE, 0))
+        assertFalse(state.dropOnTools(VOICE))
+        assertFalse(state.dropOnPins(PASTE, 1))
+        assertTrue(state.dropOnPins(PASTE, 2))
+        assertEquals(listOf(UNDO, VOICE, PASTE), state.pinSlots)
+        assertTrue(state.dropOnTools(UNDO))
+        assertTrue(state.dropOnTools(PASTE))
+        assertEquals(listOf(null, VOICE), state.pinSlots)
+        assertEquals(mapOf(VOICE to 1), state.pinLocks)
+        val reopened = ToolbarEditorState(available, state.enabled, state.tools, state.pinLocks)
+        assertEquals(listOf(null, VOICE), reopened.pinSlots)
+        assertTrue(reopened.setLocked(VOICE, false))
+        assertTrue(reopened.dropOnTools(VOICE, UNDO))
+        assertEquals(listOf(VOICE, UNDO, PASTE), reopened.tools)
     }
 
     @Test

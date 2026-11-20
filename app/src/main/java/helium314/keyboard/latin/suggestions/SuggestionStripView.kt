@@ -24,8 +24,12 @@ import android.view.View
 import android.view.View.OnLongClickListener
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.view.ViewCompat
@@ -46,6 +50,8 @@ import helium314.keyboard.latin.define.DebugFlags
 import helium314.keyboard.latin.settings.DebugSettings
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.PREF_TOOLBAR_GRID_ORDER
+import helium314.keyboard.latin.utils.PREF_TOOLBAR_PIN_LOCKS
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.addPinnedKey
@@ -54,10 +60,12 @@ import helium314.keyboard.latin.utils.dpToPx
 import helium314.keyboard.latin.utils.getEnabledToolbarKeys
 import helium314.keyboard.latin.utils.getCodeForToolbarKey
 import helium314.keyboard.latin.utils.getPinnedToolbarKeys
+import helium314.keyboard.latin.utils.getToolbarGridOrder
+import helium314.keyboard.latin.utils.getToolbarPinLocks
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.removeFirst
 import helium314.keyboard.latin.utils.removePinnedKey
-import helium314.keyboard.latin.utils.saveToolbarSelection
+import helium314.keyboard.latin.utils.saveToolbarPanelLayout
 import helium314.keyboard.latin.utils.setToolbarButtonsActivatedStateOnPrefChange
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
@@ -124,14 +132,16 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val toolbarExpandKey = findViewById<ImageButton>(R.id.suggestions_strip_toolbar_key)
     private val toolbarMenuKey = findViewById<ImageButton>(R.id.suggestions_strip_tools_menu)
     private val panelShortcuts = findViewById<LinearLayout>(R.id.toolbar_panel_shortcuts)
-    private val panelShortcutScroller = findViewById<View>(R.id.toolbar_panel_shortcuts_scroller)
+    private val panelShortcutScroller = findViewById<HorizontalScrollView>(R.id.toolbar_panel_shortcuts_scroller)
     private var toolbarPanel: ToolbarToolsPanel? = null
     private var toolbarDraft: ToolbarEditorState? = null
     private var panelTools = emptyList<ToolbarKey>()
     private var obscuredViews = emptyList<Pair<View, Int>>()
     private var revealedWrapper = false
     private var normalToolbarVisible = false
+    private var hasConfiguredPins = false
     private var configuredPins = emptyList<ToolbarKey>()
+    private var configuredPinLocks = emptyMap<ToolbarKey, Int>()
     private val incognitoIcon = KeyboardIconsSet.instance.getNewDrawable(ToolbarKey.INCOGNITO.name, context)
     private val toolbarArrowIcon = KeyboardIconsSet.instance.getNewDrawable(KeyboardIconsSet.NAME_TOOLBAR_KEY, context)
     private val defaultToolbarBackground: Drawable = toolbarExpandKey.background
@@ -170,7 +180,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbarMenuKey.setOnClickListener { onToolsButtonPressed() }
         colors.setColor(toolbarMenuKey, ColorType.TOOL_BAR_KEY)
         colors.setBackground(toolbarMenuKey, ColorType.STRIP_BACKGROUND)
-        panelShortcuts.setOnDragListener { _, event -> onShortcutDrag(event) }
+        panelShortcutScroller.setOnDragListener { _, event -> onShortcutDrag(event) }
         refreshToolbarButtons()
         toolbarContainer.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
             val newWidth = right - left
@@ -243,10 +253,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     private fun applyStripVisibility() {
         val panelOpen = isShowingToolbarPanel
+        val expandable = Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE
+        val customizedShortcuts = canOpenToolbarControls() && expandable && hasConfiguredPins
         val emptySuggestionRow = canOpenToolbarControls() &&
-            Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE &&
+            expandable &&
             !isExternalSuggestionVisible && suggestedWords.isEmpty()
-        val showQuickTools = (normalToolbarVisible || emptySuggestionRow) && toolbar.children.any { it.isVisible }
+        val showQuickTools = !customizedShortcuts && (normalToolbarVisible || emptySuggestionRow) &&
+            toolbar.children.any { it.isVisible }
         pinnedKeys.isVisible = !panelOpen && !showQuickTools
         suggestionsStrip.isVisible = !panelOpen && !showQuickTools
         toolbarContainer.isVisible = !panelOpen && showQuickTools
@@ -339,8 +352,12 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 refreshToolbarButtons()
                 return
             }
-            Settings.PREF_PINNED_TOOLBAR_KEYS -> {
+            Settings.PREF_PINNED_TOOLBAR_KEYS, PREF_TOOLBAR_PIN_LOCKS -> {
                 refreshToolbarButtons()
+                if (isShowingToolbarPanel && toolbarDraft == null) renderToolPanel()
+                return
+            }
+            PREF_TOOLBAR_GRID_ORDER -> {
                 if (isShowingToolbarPanel && toolbarDraft == null) renderToolPanel()
                 return
             }
@@ -618,8 +635,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (!canOpenToolbarControls() || !::listener.isInitialized || !toolbarMenuKey.isShown) return
         val draft = toolbarDraft
         if (draft != null) {
+            saveToolbarPanelLayout(context.prefs(), panelTools, draft.enabled, draft.tools, draft.pinLocks)
             toolbarDraft = null
-            saveToolbarSelection(context.prefs(), true, panelTools, draft.enabled)
+            refreshToolbarButtons()
             renderToolPanel()
         } else if (panel.isVisible) {
             dismissToolbarControls()
@@ -627,8 +645,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             val wrapper = panel.parent as? ViewGroup ?: return
             val keyboardView = moreSuggestionsView.mainKeyboardView
             val keyboard = keyboardView.keyboard ?: return
+            // Match the last drawn key, excluding both keyboard and view bottom padding.
+            val keysBottom = keyboard.sortedKeys.asSequence().filterNot { it.isSpacer }
+                .maxOfOrNull { it.y + it.height } ?: return
             panel.layoutParams = panel.layoutParams.apply {
-                height = keyboard.mOccupiedHeight + keyboardView.paddingTop + keyboardView.paddingBottom
+                height = keyboardView.paddingTop + keysBottom
             }
             dismissMoreSuggestionsPanel()
             keyboardView.cancelAllOngoingEvents()
@@ -649,36 +670,36 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     private fun panelPins(): List<ToolbarKey> {
-        val prefs = context.prefs()
-        val pins = if (prefs.contains(Settings.PREF_PINNED_TOOLBAR_KEYS)) configuredPins
-            else getEnabledToolbarKeys(prefs).filter { it in panelTools }.distinct().take(4)
+        val pins = if (hasConfiguredPins) configuredPins
+            else getEnabledToolbarKeys(context.prefs()).filter { it in panelTools }.distinct().take(4)
         return pins.filter { it in panelTools }
     }
 
     private fun renderToolPanel() {
         val panel = toolbarPanel ?: return
         val draft = toolbarDraft
-        val pins = draft?.enabled ?: panelPins()
+        val pins = draft?.pinSlots ?: toolbarPinSlots(panelPins(), configuredPinLocks)
         renderPanelShortcuts(pins, draft)
         updateToolbarButtons()
-        val unpinned = (draft?.items ?: panelTools).filterNot { it in pins }
         if (draft == null) {
+            val gridOrder = getToolbarGridOrder(context.prefs())
+            val unpinned = (gridOrder + panelTools).distinct().filter { it in panelTools && it !in pins }
             panel.showTools(unpinned, ::activatePanelTool) {
-                toolbarDraft = ToolbarEditorState(panelTools, pins)
+                toolbarDraft = ToolbarEditorState(panelTools, pins.filterNotNull(), gridOrder, configuredPinLocks)
                 renderToolPanel()
             }
         } else {
-            panel.showEditor(unpinned, { key ->
+            panel.showEditor(draft, { key ->
                 if (draft.dropOnPins(key, null)) renderToolPanel()
-            }, { key ->
-                val removed = draft.dropOnTools(key)
-                if (removed) post { if (toolbarDraft === draft) renderToolPanel() }
-                removed
+            }, { key, target ->
+                draft.dropOnTools(key, target).also { changed ->
+                    if (changed) post { if (toolbarDraft === draft) renderToolPanel() }
+                }
             })
         }
     }
 
-    private fun renderPanelShortcuts(keys: List<ToolbarKey>, draft: ToolbarEditorState?) {
+    private fun renderPanelShortcuts(keys: List<ToolbarKey?>, draft: ToolbarEditorState?) {
         panelShortcuts.removeAllViews()
         val colors = Settings.getValues().mColors
         panelShortcuts.background = if (draft == null) null else GradientDrawable().apply {
@@ -695,36 +716,76 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             panelShortcuts.addView(hint, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         }
         for (key in keys) {
+            if (key == null) {
+                panelShortcuts.addView(View(context), LinearLayout.LayoutParams(toolbarKeyLayoutParams))
+                continue
+            }
             val button = createToolbarKey(context, key)
-            button.layoutParams = LinearLayout.LayoutParams(toolbarKeyLayoutParams)
-            if (draft != null) button.isActivated = true
             button.contentDescription = key.toolbarPanelLabel(context)
             colors.setColor(button, ColorType.TOOL_BAR_KEY)
             colors.setBackground(button, ColorType.STRIP_BACKGROUND)
-            button.setOnClickListener {
-                if (draft == null) activatePanelTool(key)
-                else if (draft.dropOnTools(key)) renderToolPanel()
-            }
-            if (draft != null) {
+            val item = if (draft == null) {
+                button.setOnClickListener { activatePanelTool(key) }
+                button
+            } else {
+                button.isActivated = true
+                button.setOnClickListener { editPinnedTool(button, draft, key) }
                 val name = key.toolbarPanelLabel(context)
-                button.contentDescription = context.getString(R.string.toolbar_unpin_tool, name)
-                button.setOnLongClickListener { startToolbarToolDrag(button, key) }
-                for ((offset, label) in listOf(-1 to R.string.toolbar_move_earlier, 1 to R.string.toolbar_move_later)) {
-                    val target = draft.neighbor(key, offset) ?: continue
-                    ViewCompat.addAccessibilityAction(button, context.getString(label, name)) { _, _ ->
-                        draft.move(key, target).also { if (it) renderToolPanel() }
+                if (draft.isLocked(key)) {
+                    ViewCompat.setStateDescription(button, context.getString(R.string.toolbar_position_locked))
+                    FrameLayout(context).apply {
+                        addView(button, FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+                        val badgeSize = 12.dpToPx(resources)
+                        val badge = ImageView(context).apply {
+                            setImageResource(R.drawable.ic_clipboard_pin_rounded)
+                            setColorFilter(colors.get(ColorType.KEY_TEXT))
+                            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                        }
+                        addView(badge, FrameLayout.LayoutParams(badgeSize, badgeSize, android.view.Gravity.BOTTOM or android.view.Gravity.END))
                     }
+                } else {
+                    button.setOnLongClickListener { startToolbarToolDrag(button, key) }
+                    for ((offset, label) in toolbarMoveActions) {
+                        val target = draft.neighboringPinSlot(key, offset) ?: continue
+                        ViewCompat.addAccessibilityAction(button, context.getString(label, name)) { _, _ ->
+                            draft.dropOnPins(key, target).also { if (it) renderToolPanel() }
+                        }
+                    }
+                    button
                 }
             }
-            panelShortcuts.addView(button)
+            panelShortcuts.addView(item, LinearLayout.LayoutParams(toolbarKeyLayoutParams))
+        }
+    }
+
+    private fun editPinnedTool(anchor: View, draft: ToolbarEditorState, key: ToolbarKey) {
+        val locked = draft.isLocked(key)
+        PopupMenu(context, anchor).apply {
+            menu.add(if (locked) R.string.toolbar_unlock_position else R.string.toolbar_lock_position)
+                .setOnMenuItemClickListener {
+                    if (toolbarDraft === draft && draft.setLocked(key, !locked)) renderToolPanel()
+                    true
+                }
+            if (!locked) menu.add(R.string.toolbar_move_to_grid).setOnMenuItemClickListener {
+                if (toolbarDraft === draft && draft.dropOnTools(key)) renderToolPanel()
+                true
+            }
+            show()
         }
     }
 
     private fun onShortcutDrag(event: DragEvent): Boolean {
         val draft = toolbarDraft ?: return false
         val key = (event.localState as? ToolbarToolDrag)?.key ?: return false
+        if (event.action == DragEvent.ACTION_DRAG_LOCATION) {
+            val edge = 28.dpToPx(resources)
+            val amount = 6.dpToPx(resources)
+            if (event.x < edge) panelShortcutScroller.scrollBy(-amount, 0)
+            else if (event.x > panelShortcutScroller.width - edge) panelShortcutScroller.scrollBy(amount, 0)
+        }
         if (event.action != DragEvent.ACTION_DROP) return true
-        val target = panelShortcuts.children.firstOrNull { event.x >= it.left && event.x < it.right }?.tag as? ToolbarKey
+        val x = event.x + panelShortcutScroller.scrollX - panelShortcuts.left
+        val target = panelShortcuts.children.indexOfFirst { x >= it.left && x < it.right }.takeIf { it >= 0 }
         val changed = draft.dropOnPins(key, target)
         if (changed) post { if (toolbarDraft === draft) renderToolPanel() }
         return changed
@@ -747,12 +808,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             else -> true
         }
 
-    private fun visiblePinnedKeys(): List<ToolbarKey> {
+    private fun visiblePinnedKeys(): List<ToolbarKey?> {
         val keyWidth = toolbarKeyLayoutParams.width
         val reservedWidth = (if (toolbarMenuKey.isVisible) toolbarMenuKey.layoutParams.width else 0) +
             (if (toolbarExpandKey.isVisible) toolbarExpandKey.layoutParams.width else 0)
         val capacity = pinnedToolbarCapacity(width, reservedWidth, 132.dpToPx(resources), keyWidth)
-        return configuredPins.asSequence().filter(::isToolbarToolAvailable).take(capacity).toList()
+        val available = configuredPins.filter(::isToolbarToolAvailable)
+        return toolbarPinSlots(available, configuredPinLocks).take(capacity).dropLastWhile { it == null }
     }
 
     private fun refreshToolbarButtons() {
@@ -769,7 +831,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     private fun refreshPinConfiguration() {
-        configuredPins = getPinnedToolbarKeys(context.prefs()).distinct()
+        val prefs = context.prefs()
+        hasConfiguredPins = prefs.contains(Settings.PREF_PINNED_TOOLBAR_KEYS)
+        configuredPins = getPinnedToolbarKeys(prefs).distinct()
+        configuredPinLocks = getToolbarPinLocks(prefs)
         if (Settings.getValues().mQuickPinToolbarKeys) {
             for (index in 0 until toolbar.childCount) {
                 val button = toolbar.getChildAt(index)
@@ -787,7 +852,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (visible.size == pinnedKeys.childCount && visible.indices.all { pinnedKeys.getChildAt(it).tag == visible[it] })
             return
         pinnedKeys.removeAllViews()
-        for (key in visible) addToolbarButton(pinnedKeys, key)
+        for (key in visible) {
+            if (key == null) pinnedKeys.addView(View(context), LinearLayout.LayoutParams(toolbarKeyLayoutParams))
+            else addToolbarButton(pinnedKeys, key)
+        }
     }
 
     private fun addToolbarButton(parent: ViewGroup, key: ToolbarKey) {

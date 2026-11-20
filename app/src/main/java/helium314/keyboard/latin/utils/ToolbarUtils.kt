@@ -188,18 +188,41 @@ fun getPinnedToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(prefs
 
 fun getEnabledClipboardToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(prefs, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
 
-internal fun saveToolbarSelection(
+internal const val PREF_TOOLBAR_GRID_ORDER = "toolbar_grid_order"
+internal const val PREF_TOOLBAR_PIN_LOCKS = "toolbar_pin_locks"
+
+internal fun getToolbarGridOrder(prefs: SharedPreferences): List<ToolbarKey> =
+    prefs.getString(PREF_TOOLBAR_GRID_ORDER, "").orEmpty()
+        .split(Separators.ENTRY).mapNotNull(::parseToolbarKey).distinct()
+
+internal fun getToolbarPinLocks(prefs: SharedPreferences): Map<ToolbarKey, Int> =
+    prefs.getString(PREF_TOOLBAR_PIN_LOCKS, "").orEmpty().split(Separators.ENTRY).mapNotNull { entry ->
+        val key = parseToolbarKey(entry.substringBefore(Separators.KV)) ?: return@mapNotNull null
+        val slot = entry.substringAfter(Separators.KV, "").toIntOrNull() ?: return@mapNotNull null
+        if (slot in entries.indices) key to slot else null
+    }.toMap()
+
+private fun parseToolbarKey(name: String): ToolbarKey? = entries.firstOrNull { it.name == name }
+
+internal fun saveToolbarPanelLayout(
     prefs: SharedPreferences,
-    pinned: Boolean,
     available: List<ToolbarKey>,
-    selected: List<ToolbarKey>,
+    pins: List<ToolbarKey>,
+    tools: List<ToolbarKey>,
+    locks: Map<ToolbarKey, Int>,
 ) {
-    val pref = if (pinned) Settings.PREF_PINNED_TOOLBAR_KEYS else Settings.PREF_TOOLBAR_KEYS
-    val default = if (pinned) defaultPinnedToolbarPref else defaultToolbarPref
-    val original = prefs.getString(pref, default) ?: default
-    val enabled = getEnabledToolbarKeys(prefs, pref, default)
-    val value = toolbarSelectionPreference(original, enabled, available, selected)
-    if (value != original || !prefs.contains(pref)) prefs.edit { putString(pref, value) }
+    val pref = Settings.PREF_PINNED_TOOLBAR_KEYS
+    val original = prefs.getString(pref, defaultPinnedToolbarPref) ?: defaultPinnedToolbarPref
+    val pinnedOrder = toolbarSelectionPreference(original, getPinnedToolbarKeys(prefs), available, pins)
+    val gridOrder = (tools + getToolbarGridOrder(prefs).filterNot { it in available }).distinct()
+    val pinLocks = getToolbarPinLocks(prefs).filterKeys { it !in available } + locks
+    prefs.edit {
+        putString(pref, pinnedOrder)
+        putString(PREF_TOOLBAR_GRID_ORDER, gridOrder.joinToString(Separators.ENTRY) { it.name })
+        putString(PREF_TOOLBAR_PIN_LOCKS, pinLocks.entries.joinToString(Separators.ENTRY) {
+            it.key.name + Separators.KV + it.value
+        })
+    }
 }
 
 internal fun toolbarSelectionPreference(

@@ -19,6 +19,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
+import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -62,7 +63,6 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
         hint.textSize = 12f
         hint.setPaddingRelative(dp(6), 0, dp(6), dp(4))
         addView(hint, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-        addView(body, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         footer.gravity = Gravity.CENTER_VERTICAL
         pageLabel.gravity = Gravity.CENTER
         pageLabel.setTextColor(fg)
@@ -70,7 +70,8 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
         footer.addView(pageLabel, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         footer.addView(next, LayoutParams(dp(44), LayoutParams.MATCH_PARENT))
         footer.addView(edit, LayoutParams(dp(48), LayoutParams.MATCH_PARENT))
-        addView(footer, LayoutParams(LayoutParams.MATCH_PARENT, dp(42)))
+        addView(footer, LayoutParams(LayoutParams.MATCH_PARENT, dp(42)).apply { bottomMargin = gap })
+        addView(body, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         previous.setOnClickListener { pager?.let { it.setCurrentItem(it.currentItem - 1, true) } }
         next.setOnClickListener { pager?.let { it.setCurrentItem(it.currentItem + 1, true) } }
         body.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
@@ -87,18 +88,37 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
         rebuildPages()
     }
 
-    internal fun showEditor(tools: List<ToolbarKey>, onPin: (ToolbarKey) -> Unit, onUnpin: (ToolbarKey) -> Boolean) {
+    internal fun showEditor(
+        draft: ToolbarEditorState,
+        onPin: (ToolbarKey) -> Unit,
+        onDrop: (ToolbarKey, ToolbarKey?) -> Boolean,
+    ) {
         val scrollY = editScroll?.scrollY ?: 0
         clearContents()
         hint.isVisible = true
         footer.isVisible = false
+        val tiles = grid(draft.tools, onPin, draft, onDrop)
         val scroll = ScrollView(context).apply {
             isFillViewport = true
-            addView(grid(tools, onPin, editing = true))
+            addView(tiles)
             setOnDragListener { _, event ->
                 val drag = event.localState as? ToolbarToolDrag ?: return@setOnDragListener false
                 when (event.action) {
-                    DragEvent.ACTION_DROP -> onUnpin(drag.key)
+                    DragEvent.ACTION_DROP -> {
+                        val x = event.x + scrollX - tiles.left
+                        val y = event.y + scrollY - tiles.top
+                        val row = tiles.children.firstOrNull { y >= it.top && y < it.bottom + gap } as? ViewGroup
+                        val target = row?.let { hitRow ->
+                            hitRow.children.firstOrNull { x >= hitRow.left + it.left && x < hitRow.left + it.right }
+                        }?.tag as? ToolbarKey
+                        onDrop(drag.key, target)
+                    }
+                    DragEvent.ACTION_DRAG_LOCATION -> {
+                        val edge = dp(28)
+                        if (event.y < edge) scrollBy(0, -gap)
+                        else if (event.y > height - edge) scrollBy(0, gap)
+                        true
+                    }
                     else -> true
                 }
             }
@@ -136,7 +156,7 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
 
             override fun onBindViewHolder(holder: Page, position: Int) {
                 holder.scroll.removeAllViews()
-                holder.scroll.addView(grid(pages[position], current.activate, editing = false))
+                holder.scroll.addView(grid(pages[position], current.activate))
             }
 
             override fun getItemCount() = pages.size
@@ -165,7 +185,12 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
 
     private class Page(val scroll: ScrollView) : RecyclerView.ViewHolder(scroll)
 
-    private fun grid(tools: List<ToolbarKey>, onTool: (ToolbarKey) -> Unit, editing: Boolean): LinearLayout =
+    private fun grid(
+        tools: List<ToolbarKey>,
+        onTool: (ToolbarKey) -> Unit,
+        draft: ToolbarEditorState? = null,
+        onMove: ((ToolbarKey, ToolbarKey) -> Boolean)? = null,
+    ): LinearLayout =
         LinearLayout(context).apply {
             orientation = VERTICAL
             for (pair in tools.chunked(2)) {
@@ -177,6 +202,7 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
                         setTint(fg)
                     }
                     val tile = TextView(context).apply {
+                        tag = key
                         this.text = label
                         gravity = Gravity.CENTER_VERTICAL
                         setTextColor(fg)
@@ -189,9 +215,15 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
                         background = tileBackground()
                         isFocusable = true
                         setOnClickListener { onTool(key) }
-                        if (editing) {
+                        if (draft != null && onMove != null) {
                             contentDescription = context.getString(R.string.toolbar_pin_tool, label)
                             setOnLongClickListener { startToolbarToolDrag(it, key) }
+                            for ((offset, action) in toolbarMoveActions) {
+                                val target = draft.neighboringTool(key, offset) ?: continue
+                                ViewCompat.addAccessibilityAction(this, context.getString(action, label)) { _, _ ->
+                                    onMove(key, target)
+                                }
+                            }
                         }
                     }
                     row.addView(tile, LayoutParams(0, rowHeight, 1f).apply {
@@ -224,6 +256,8 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
 }
 
 internal data class ToolbarToolDrag(val key: ToolbarKey)
+
+internal val toolbarMoveActions = listOf(-1 to R.string.toolbar_move_earlier, 1 to R.string.toolbar_move_later)
 
 internal fun ToolbarKey.toolbarPanelLabel(context: Context): String =
     if (this == ToolbarKey.FLOATING && Settings.getValues().mIsFloatingKeyboard)
