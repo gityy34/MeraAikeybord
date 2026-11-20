@@ -1,0 +1,103 @@
+name: Build approved tools panel Debug APK v5
+on:
+  push:
+    branches: ['codex/build-tools-panel-v5-eb2845d5']
+    paths: ['.github/workflows/build-tools-panel-v5.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.event.before == 'eb2845d5d2e2d33869e468321b9defdc11cfa61d'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APK_FILE: app/build/outputs/apk/debug/HeliBoard_4.3-beta1-v5-debug.apk
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'eb2845d5d2e2d33869e468321b9defdc11cfa61d'
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Assemble approved Debug APK
+        run: ./gradlew :app:assembleDebug
+      - name: Verify APK metadata, signature, and toolbar resources
+        shell: bash
+        run: |
+          test -s "$APK_FILE"
+          unzip -tq "$APK_FILE"
+          sdk_tools="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner -print | sort -V | tail -n 1)")"
+          "$sdk_tools/zipalign" -c 4 "$APK_FILE"
+          "$sdk_tools/apksigner" verify --verbose --print-certs "$APK_FILE"
+          badging="$("$sdk_tools/aapt2" dump badging "$APK_FILE")"
+          printf '%s\n' "$badging" | awk '/^package:|^sdkVersion:|^targetSdkVersion:|^native-code:|^uses-permission:/'
+          [[ "$badging" == *"name='helium314.keyboard.debug' versionCode='4303' versionName='4.3-beta1-v5'"* ]]
+          [[ "$badging" != *"android.permission.INTERNET"* ]]
+          "$sdk_tools/aapt2" dump resources "$APK_FILE" | awk '
+            /string\/toolbar_more_options/ { menu = 1 }
+            /string\/toolbar_edit_pinned/ { pinned = 1 }
+            /string\/toolbar_dock_keyboard/ { dock = 1 }
+            /id\/toolbar_tools_panel/ { panel = 1 }
+            /drawable\/ic_toolbar_grid/ { grid = 1 }
+            /drawable\/ic_toolbar_edit/ { edit = 1 }
+            END { if (menu && pinned && dock && panel && grid && edit) print "Tools panel resources verified"; else exit 1 }'
+          unzip -p "$APK_FILE" assets/layouts/main/urdu.json | cmp app/src/main/assets/layouts/main/urdu.json -
+          stat -c 'APK bytes: %s' "$APK_FILE"
+          sha256sum "$APK_FILE"
+      - name: Install and check IME registration if an emulator is available
+        shell: bash
+        run: |
+          accel=()
+          if [[ -c /dev/kvm && ( ! -r /dev/kvm || ! -w /dev/kvm ) ]]; then
+            if ! (sudo chown "$(id -u):$(id -g)" /dev/kvm && sudo chmod u+rw /dev/kvm); then
+              echo 'Could not grant the runner access to KVM.'
+            fi
+          fi
+          if [[ ! -c /dev/kvm || ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            echo 'KVM unavailable, attempting software emulation.'
+            accel=(-accel off)
+          fi
+          image='system-images;android-30;default;x86_64'
+          if ! timeout 240s sdkmanager --install emulator "$image"; then
+            echo 'APK_EMULATOR_INSTALL=unavailable (emulator SDK installation failed)'
+            exit 0
+          fi
+          if ! printf 'no\n' | timeout 45s avdmanager create avd --name tools_v5_check --package "$image"; then
+            echo 'APK_EMULATOR_INSTALL=unavailable (virtual device creation failed)'
+            exit 0
+          fi
+          emu_log="$(mktemp)"
+          "$ANDROID_HOME/emulator/emulator" -avd tools_v5_check -port 5554 -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect "${accel[@]}" > "$emu_log" 2>&1 &
+          emu_pid=$!
+          trap 'timeout 5s adb -s emulator-5554 emu kill >/dev/null 2>&1 || kill "$emu_pid" 2>/dev/null || true' EXIT
+          deadline=$((SECONDS + 180))
+          booted=0
+          while (( SECONDS < deadline )) && kill -0 "$emu_pid" 2>/dev/null; do
+            if [[ "$(timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then
+              booted=1
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$booted" != 1 ]]; then
+            tail -n 25 "$emu_log"
+            echo 'APK_EMULATOR_INSTALL=unavailable (emulator did not boot)'
+            exit 0
+          fi
+          timeout 90s adb -s emulator-5554 install -t "$APK_FILE"
+          timeout 20s adb -s emulator-5554 shell pm path helium314.keyboard.debug
+          ime_list="$(timeout 20s adb -s emulator-5554 shell ime list -a -s)"
+          [[ "$ime_list" == *"helium314.keyboard.debug/"* ]]
+          echo 'APK_EMULATOR_INSTALL=passed (Android API 30, IME registered)'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeraAiKeyboard-v5-debug
+          path: app/build/outputs/apk/debug/HeliBoard_4.3-beta1-v5-debug.apk
+          if-no-files-found: error
