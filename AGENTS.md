@@ -184,3 +184,18 @@ The Debug certificate differs from the previous APK. Physical installation,
 actual screen geometry, cursor movement and Backspace with diacritics across
 editors remain unverified. Approval applied only to the completed run and build.
 The isolated CI branches address the unavailable workflow-dispatch connection.
+
+## In-keyboard toolbar editor
+
+The keyboard's overflow menu opens editors for regular and pinned tools, lists
+the tools outside the visible pins, and exposes the existing floating and docking
+actions. Editing uses the existing local preferences. Dragging uses an in-process
+tool identifier and sends no text. The new menu is unavailable in password fields
+and while the device is locked.
+
+The owner approved targeted tests on 2026-11-20. Run 44662569884 compiled the app
+and test sources at `fcc98c60437c2447415c85fc5e1a6e39a6674f15`. All 54 tests
+passed, including six toolbar state tests and 48 keyboard regression tests.
+See <https://github.com/gityy34/MeraAikeybord/actions/runs/44662569884/artifacts/14595109961>.
+There were no manifest or dependency changes. Phone checks for menu placement,
+long-press dragging, docking and TalkBack remain pending. No APK was built.
