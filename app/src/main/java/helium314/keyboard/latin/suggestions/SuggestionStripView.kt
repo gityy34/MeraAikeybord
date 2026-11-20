@@ -6,6 +6,7 @@
 package helium314.keyboard.latin.suggestions
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
@@ -25,6 +26,7 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.view.doOnNextLayout
@@ -49,11 +51,15 @@ import helium314.keyboard.latin.utils.addPinnedKey
 import helium314.keyboard.latin.utils.createToolbarKey
 import helium314.keyboard.latin.utils.dpToPx
 import helium314.keyboard.latin.utils.getEnabledToolbarKeys
+import helium314.keyboard.latin.utils.getCodeForToolbarKey
 import helium314.keyboard.latin.utils.getPinnedToolbarKeys
+import helium314.keyboard.latin.utils.getPlatformDialogThemeContext
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.removeFirst
 import helium314.keyboard.latin.utils.removePinnedKey
+import helium314.keyboard.latin.utils.saveToolbarSelection
 import helium314.keyboard.latin.utils.setToolbarButtonsActivatedStateOnPrefChange
+import helium314.keyboard.latin.utils.toolbarKeyLabel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.min
@@ -117,6 +123,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val pinnedKeys: ViewGroup = findViewById(R.id.pinned_keys)
     private val suggestionsStrip: ViewGroup = findViewById(R.id.suggestions_strip)
     private val toolbarExpandKey = findViewById<ImageButton>(R.id.suggestions_strip_toolbar_key)
+    private val toolbarMenuKey = findViewById<ImageButton>(R.id.suggestions_strip_tools_menu)
+    private var toolbarMenu: PopupMenu? = null
+    private var toolbarEditor: AlertDialog? = null
+    private var configuredPins = emptyList<ToolbarKey>()
     private val incognitoIcon = KeyboardIconsSet.instance.getNewDrawable(ToolbarKey.INCOGNITO.name, context)
     private val toolbarArrowIcon = KeyboardIconsSet.instance.getNewDrawable(KeyboardIconsSet.NAME_TOOLBAR_KEY, context)
     private val defaultToolbarBackground: Drawable = toolbarExpandKey.background
@@ -152,26 +162,15 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             setToolbarVisibility(true)
         }
 
-        // toolbar keys setup (no need to hide them any more when locked, because then suggestion strip is gone anyway
-        for (key in getEnabledToolbarKeys(context.prefs())) {
-            val button = createToolbarKey(context, key)
-            button.layoutParams = toolbarKeyLayoutParams
-            setupKey(button, colors)
-            toolbar.addView(button)
-        }
-        for (pinnedKey in getPinnedToolbarKeys(context.prefs())) {
-            val button = createToolbarKey(context, pinnedKey)
-            button.layoutParams = toolbarKeyLayoutParams
-            setupKey(button, colors)
-            pinnedKeys.addView(button)
-            val pinnedKeyInToolbar = toolbar.findViewWithTag<View>(pinnedKey)
-            if (pinnedKeyInToolbar != null && Settings.getValues().mQuickPinToolbarKeys)
-                pinnedKeyInToolbar.background = enabledToolKeyBackground
-        }
-        toolbarContainer.doOnNextLayout {
-            // set min with of the toolbar so the weight of the toolbar keys actually does something
-            // todo: results in requestLayout() improperly called by android.widget.LinearLayout during layout: running second layout pass
-            toolbar.minimumWidth = toolbarContainer.width
+        toolbarMenuKey.setOnClickListener { showToolbarMenu() }
+        colors.setColor(toolbarMenuKey, ColorType.TOOL_BAR_KEY)
+        colors.setBackground(toolbarMenuKey, ColorType.STRIP_BACKGROUND)
+        refreshToolbarButtons()
+        toolbarContainer.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            val newWidth = right - left
+            if (newWidth > 0 && newWidth != oldRight - oldLeft) {
+                toolbar.post { toolbar.minimumWidth = toolbarContainer.width }
+            }
         }
 
         updateKeys()
@@ -284,9 +283,24 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         moreSuggestionsView.dismissPopupKeysPanel()
     }
 
+    fun dismissToolbarControls() {
+        toolbarMenu?.dismiss()
+        toolbarEditor?.dismiss()
+    }
+
     // overrides: necessarily public, but not used from outside
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String?) {
+        when (key) {
+            Settings.PREF_TOOLBAR_KEYS -> {
+                refreshToolbarButtons()
+                return
+            }
+            Settings.PREF_PINNED_TOOLBAR_KEYS -> {
+                refreshPinConfiguration()
+                return
+            }
+        }
         setToolbarButtonsActivatedStateOnPrefChange(pinnedKeys, key)
         setToolbarButtonsActivatedStateOnPrefChange(toolbar, key)
         if (key == Settings.PREF_ALWAYS_INCOGNITO_MODE)
@@ -298,16 +312,21 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         // workaround for a bug with inline suggestions views that just keep showing up otherwise, https://github.com/HeliBorg/HeliBoard/pull/386
         if (view === this)
             suggestionsStrip.visibility = visibility
+        if (view === this && visibility != VISIBLE) dismissToolbarControls()
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        dismissToolbarControls()
         dismissMoreSuggestionsPanel()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        // Called by the framework when the size is known. Show the important notice if applicable.
-        // This may be overridden by showing suggestions later, if applicable.
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w != oldw) {
+            // Changing the pin count can change the width of the suggestions after this layout.
+            post { if (isAttachedToWindow) refreshPinnedKeys() }
+        }
     }
 
     override fun dispatchPopulateAccessibilityEvent(event: AccessibilityEvent): Boolean {
@@ -368,16 +387,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             onLongClickToolbarKey(view) { code, isRepeat -> listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, isRepeat) }
         } else if (view.parent === toolbar) {
             AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
-            val pinnedKeyView = pinnedKeys.findViewWithTag<View>(tag)
-            if (pinnedKeyView == null) {
-                addKeyToPinnedKeys(tag)
-                toolbar.findViewWithTag<View>(tag).background = enabledToolKeyBackground
-                addPinnedKey(context.prefs(), tag)
-            } else {
-                removePinnedKey(context.prefs(), tag)
-                toolbar.findViewWithTag<View>(tag).background = defaultToolbarBackground.constantState?.newDrawable(resources)
-                pinnedKeys.removeView(pinnedKeyView)
-            }
+            val prefs = context.prefs()
+            if (tag in getPinnedToolbarKeys(prefs)) removePinnedKey(prefs, tag)
+            else addPinnedKey(prefs, tag)
         }
     }
 
@@ -501,7 +513,12 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     fun updateVoiceKey() {
         val show = Settings.getValues().mShowsVoiceInputKey
         toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
-        pinnedKeys.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
+        val showMenu = canOpenToolbarControls()
+        if (toolbarMenuKey.isVisible != showMenu) {
+            toolbarMenuKey.isVisible = showMenu
+            if (!showMenu) dismissToolbarControls()
+        }
+        refreshPinnedKeys()
     }
 
     private fun updateKeys() {
@@ -522,20 +539,127 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         isExternalSuggestionVisible = false
     }
 
-    private fun addKeyToPinnedKeys(pinnedKey: ToolbarKey) {
-        val original = toolbar.findViewWithTag<ImageButton>(pinnedKey) ?: return
-        // copy the original key to a new ImageButton
-        val copy = ImageButton(context, null, R.attr.suggestionWordStyle)
-        copy.tag = pinnedKey
-        copy.scaleType = original.scaleType
-        copy.scaleX = original.scaleX
-        copy.scaleY = original.scaleY
-        copy.contentDescription = original.contentDescription
-        copy.setImageDrawable(original.drawable)
-        copy.layoutParams = original.layoutParams
-        copy.isActivated = original.isActivated
-        setupKey(copy, Settings.getValues().mColors)
-        pinnedKeys.addView(copy)
+    private fun canOpenToolbarControls(): Boolean {
+        val settings = Settings.getValues()
+        return settings.mToolbarMode != ToolbarMode.HIDDEN && !settings.mIsLocked &&
+            !settings.mInputAttributes.mIsPasswordField
+    }
+
+    private fun showToolbarMenu() {
+        if (!canOpenToolbarControls() || !::listener.isInitialized || toolbarMenuKey.windowToken == null ||
+            toolbarMenuKey.windowVisibility != VISIBLE ||
+            toolbarMenu != null || toolbarEditor != null
+        ) return
+        dismissMoreSuggestionsPanel()
+        val popup = PopupMenu(getPlatformDialogThemeContext(context), toolbarMenuKey)
+        val menu = popup.menu
+        menu.add(R.string.toolbar_edit_tools).setOnMenuItemClickListener {
+            toolbarMenuKey.post { showToolbarEditor(pinned = false) }
+            true
+        }
+        if (Settings.getValues().mToolbarMode != ToolbarMode.TOOLBAR_KEYS) {
+            menu.add(R.string.toolbar_edit_pinned).setOnMenuItemClickListener {
+                toolbarMenuKey.post { showToolbarEditor(pinned = true) }
+                true
+            }
+        }
+        val floating = Settings.getValues().mIsFloatingKeyboard
+        menu.add(if (floating) R.string.toolbar_dock_keyboard else R.string.floating)
+            .setOnMenuItemClickListener {
+                if (canOpenToolbarControls()) sendToolbarCode(KeyCode.TOGGLE_FLOATING_WINDOW)
+                true
+            }
+        val prefs = context.prefs()
+        val shownPins = if (pinnedKeys.isVisible) visiblePinnedKeys().toSet() else emptySet()
+        val moreTools = (getPinnedToolbarKeys(prefs) + getEnabledToolbarKeys(prefs)).distinct()
+            .filter { it !in shownPins && isToolbarToolAvailable(it) }
+        if (moreTools.isNotEmpty()) {
+            val more = menu.addSubMenu(R.string.toolbar_more_tools)
+            for (key in moreTools) {
+                more.add(key.toolbarKeyLabel(context)).setOnMenuItemClickListener {
+                    if (canOpenToolbarControls()) sendToolbarCode(getCodeForToolbarKey(key))
+                    true
+                }
+            }
+        }
+        popup.setOnDismissListener { toolbarMenu = null }
+        toolbarMenu = popup
+        popup.show()
+    }
+
+    private fun sendToolbarCode(code: Int) {
+        if (code != KeyCode.UNSPECIFIED) {
+            listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false)
+        }
+    }
+
+    private fun showToolbarEditor(pinned: Boolean) {
+        if (!canOpenToolbarControls() || !toolbarMenuKey.isShown || toolbarMenuKey.windowVisibility != VISIBLE ||
+            toolbarEditor != null
+        ) return
+        val prefs = context.prefs()
+        val available = ToolbarKey.entries.filter {
+            it != ToolbarKey.CLOSE_HISTORY && it != ToolbarKey.BACKGROUND_GATHERING
+        }
+        val enabled = if (pinned) getPinnedToolbarKeys(prefs) else getEnabledToolbarKeys(prefs)
+        val editor = createToolbarEditorDialog(toolbarMenuKey, pinned, available, enabled) {
+            if (canOpenToolbarControls()) {
+                saveToolbarSelection(prefs, pinned, available, it)
+                if (!pinned && Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE)
+                    setToolbarVisibility(true)
+            }
+        } ?: return
+        toolbarEditor = editor
+        editor.setOnDismissListener { toolbarEditor = null }
+        editor.show()
+    }
+
+    private fun isToolbarToolAvailable(key: ToolbarKey): Boolean =
+        key != ToolbarKey.CLOSE_HISTORY &&
+            (key != ToolbarKey.VOICE || Settings.getValues().mShowsVoiceInputKey)
+
+    private fun visiblePinnedKeys(): List<ToolbarKey> {
+        val keyWidth = toolbarKeyLayoutParams.width
+        val reservedWidth = (if (toolbarMenuKey.isVisible) toolbarMenuKey.layoutParams.width else 0) +
+            (if (toolbarExpandKey.isVisible) toolbarExpandKey.layoutParams.width else 0)
+        val capacity = pinnedToolbarCapacity(width, reservedWidth, 132.dpToPx(resources), keyWidth)
+        return configuredPins.asSequence().filter(::isToolbarToolAvailable).take(capacity).toList()
+    }
+
+    private fun refreshToolbarButtons() {
+        toolbar.removeAllViews()
+        for (key in getEnabledToolbarKeys(context.prefs()).distinct()) addToolbarButton(toolbar, key)
+        toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = Settings.getValues().mShowsVoiceInputKey
+        refreshPinConfiguration()
+    }
+
+    private fun refreshPinConfiguration() {
+        configuredPins = getPinnedToolbarKeys(context.prefs()).distinct()
+        if (Settings.getValues().mQuickPinToolbarKeys) {
+            for (index in 0 until toolbar.childCount) {
+                val button = toolbar.getChildAt(index)
+                val key = button.tag as? ToolbarKey ?: continue
+                button.background = if (key in configuredPins)
+                    enabledToolKeyBackground.constantState?.newDrawable(resources)
+                else defaultToolbarBackground.constantState?.newDrawable(resources)
+            }
+        }
+        refreshPinnedKeys()
+    }
+
+    private fun refreshPinnedKeys() {
+        val visible = visiblePinnedKeys()
+        if (visible.size == pinnedKeys.childCount && visible.indices.all { pinnedKeys.getChildAt(it).tag == visible[it] })
+            return
+        pinnedKeys.removeAllViews()
+        for (key in visible) addToolbarButton(pinnedKeys, key)
+    }
+
+    private fun addToolbarButton(parent: ViewGroup, key: ToolbarKey) {
+        val button = createToolbarKey(context, key)
+        button.layoutParams = LinearLayout.LayoutParams(toolbarKeyLayoutParams)
+        setupKey(button, Settings.getValues().mColors)
+        parent.addView(button)
     }
 
     private fun setupKey(view: ImageButton, colors: Colors) {

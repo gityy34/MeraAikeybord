@@ -99,11 +99,15 @@ object FloatingKeyboardUtils {
         val lp = view.layoutParams as ViewGroup.MarginLayoutParams
         var positionX = lp.leftMargin.toFloat()
         var positionY = lp.topMargin.toFloat()
+        var moved = false
         setOnTouchListener { _, event ->
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = event.rawX
                     startY = event.rawY
+                    positionX = lp.leftMargin.toFloat()
+                    positionY = lp.topMargin.toFloat()
+                    moved = false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -114,12 +118,18 @@ object FloatingKeyboardUtils {
                     val sv = Settings.getValues()
                     val availableWidth = windowFrame.right - windowFrame.left
                     val availableHeight = windowFrame.bottom - windowFrame.top
-                    positionX = (positionX + dx).coerceIn(0f, (availableWidth - sv.mFloatingWidth).toFloat())
-                    positionY = (positionY + dy).coerceIn(0f, availableHeight - extraHeight - actualFloatingHeight)
+                    val maxX = (availableWidth - sv.mFloatingWidth).coerceAtLeast(0).toFloat()
+                    val maxY = (availableHeight - extraHeight - actualFloatingHeight).coerceAtLeast(0f)
+                    positionX = (positionX + dx).coerceIn(0f, maxX)
+                    positionY = (positionY + dy).coerceIn(0f, maxY)
+                    moved = moved || lp.leftMargin != positionX.toInt() || lp.topMargin != positionY.toInt()
                     lp.leftMargin = positionX.toInt()
                     lp.topMargin = positionY.toInt()
-                    savePosition(context, lp.leftMargin, lp.topMargin)
                     view.layoutParams = lp // to update immediately
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (moved) savePosition(context, lp.leftMargin, lp.topMargin)
                     true
                 }
                 else -> false

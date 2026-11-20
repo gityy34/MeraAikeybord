@@ -29,7 +29,7 @@ fun createToolbarKey(context: Context, key: ToolbarKey): ImageButton {
     val button = ImageButton(context, null, R.attr.suggestionWordStyle)
     button.scaleType = ImageView.ScaleType.CENTER
     button.tag = key
-    button.contentDescription = key.name.lowercase().getStringResourceOrName("", context)
+    button.contentDescription = key.toolbarKeyLabel(context)
     setToolbarButtonActivatedState(button)
     button.setImageDrawable(KeyboardIconsSet.instance.getNewDrawable(key.name, context))
     return button
@@ -130,6 +130,9 @@ enum class ToolbarMode {
 
 val toolbarKeyStrings = entries.associateWithTo(EnumMap(ToolbarKey::class.java)) { it.toString().lowercase(Locale.US) }
 
+internal fun ToolbarKey.toolbarKeyLabel(context: Context): String =
+    toolbarKeyStrings.getValue(this).getStringResourceOrName("", context)
+
 val defaultToolbarPref by lazy {
     val default = listOf(SETTINGS, VOICE, CLIPBOARD, UNDO, REDO, SELECT_WORD, COPY, PASTE, LEFT, RIGHT)
     val others = entries.filterNot { it in default || it == CLOSE_HISTORY }
@@ -181,6 +184,45 @@ fun getEnabledToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(pref
 fun getPinnedToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(prefs, Settings.PREF_PINNED_TOOLBAR_KEYS, defaultPinnedToolbarPref)
 
 fun getEnabledClipboardToolbarKeys(prefs: SharedPreferences) = getEnabledToolbarKeys(prefs, Settings.PREF_CLIPBOARD_TOOLBAR_KEYS, defaultClipboardToolbarPref)
+
+internal fun saveToolbarSelection(
+    prefs: SharedPreferences,
+    pinned: Boolean,
+    available: List<ToolbarKey>,
+    selected: List<ToolbarKey>,
+) {
+    val pref = if (pinned) Settings.PREF_PINNED_TOOLBAR_KEYS else Settings.PREF_TOOLBAR_KEYS
+    val default = if (pinned) defaultPinnedToolbarPref else defaultToolbarPref
+    val original = prefs.getString(pref, default) ?: default
+    val enabled = getEnabledToolbarKeys(prefs, pref, default)
+    val value = toolbarSelectionPreference(original, enabled, available, selected)
+    if (value != original) prefs.edit { putString(pref, value) }
+}
+
+internal fun toolbarSelectionPreference(
+    original: String,
+    enabled: List<ToolbarKey>,
+    available: List<ToolbarKey>,
+    selected: List<ToolbarKey>,
+): String {
+    val edited = selected.filter { it in available }.distinct()
+    if (edited == enabled.filter { it in available }) return original
+    val replacement = edited.iterator()
+    // Keep tools outside the editor (such as an experimental tool) in the active order.
+    val active = buildList {
+        for (key in enabled) {
+            if (key !in available) add(key)
+            else if (replacement.hasNext()) add(replacement.next())
+        }
+        addAll(replacement.asSequence())
+    }
+    val activeNames = active.mapTo(mutableSetOf()) { it.name }
+    val originalNames = original.split(Separators.ENTRY).map { it.substringBefore(Separators.KV) }
+    return (active.map { it.name } + originalNames + available.map { it.name })
+        .filter { it.isNotEmpty() }.distinct().joinToString(Separators.ENTRY) { name ->
+            name + Separators.KV + (name in activeNames)
+        }
+}
 
 fun addPinnedKey(prefs: SharedPreferences, key: ToolbarKey) {
     // remove the existing version of this key and add the enabled one after the last currently enabled key

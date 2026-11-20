@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="toolbar_more_options">Toolbar options</string>
+    <string name="toolbar_more_tools">More tools</string>
+    <string name="toolbar_edit_tools">Edit toolbar</string>
+    <string name="toolbar_edit_pinned">Edit pinned tools</string>
+    <string name="toolbar_dock_keyboard">Dock keyboard</string>
+    <string name="toolbar_editor_help">Check the tools to show. Hold a handle and drag to reorder, or use the move buttons.</string>
+    <string name="toolbar_editor_pinned_help">Check the tools to pin. Hold and drag a handle to reorder. Pins that do not fit appear in More tools.</string>
+    <string name="toolbar_editor_done">Done</string>
+    <string name="toolbar_move_up">Move %1$s up</string>
+    <string name="toolbar_move_down">Move %1$s down</string>
+    <string name="toolbar_drag_tool">Drag %1$s to reorder</string>
+</resources>

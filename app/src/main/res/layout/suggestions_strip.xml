@@ -29,8 +29,9 @@
             android:contentDescription="@string/more_keys_strip_description" />
         <HorizontalScrollView
             android:id="@+id/toolbar_container"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_weight="1"
             android:scrollbarThumbHorizontal="@color/toolbar_scrollbar"
             android:visibility="gone">
             <LinearLayout
@@ -63,5 +64,14 @@
             android:minWidth="0dp"
             style="?attr/suggestionWordStyle">
         </LinearLayout>
+        <ImageButton
+            android:id="@+id/suggestions_strip_tools_menu"
+            android:layout_width="48dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:scaleType="center"
+            android:src="@drawable/ic_toolbar_more"
+            android:contentDescription="@string/toolbar_more_options"
+            style="?attr/suggestionWordStyle" />
     </LinearLayout>
 </merge>

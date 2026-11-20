@@ -949,6 +949,7 @@ public class LatinIME extends InputMethodService implements
     }
 
     private void cleanupInternalStateForFinishInput() {
+        if (hasSuggestionStripView()) mSuggestionStripView.dismissToolbarControls();
         // Remove pending messages related to update suggestions
         mHandler.cancelUpdateSuggestionStrip();
         // Should do the following in onFinishInputInternal but until JB MR2 it's not called :(
@@ -1026,8 +1027,11 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void hideWindow() {
         Log.i(TAG, "hideWindow");
-        if (hasSuggestionStripView() && mSettings.getCurrent().mToolbarMode == ToolbarMode.EXPANDABLE)
-            mSuggestionStripView.setToolbarVisibility(false);
+        if (hasSuggestionStripView()) {
+            mSuggestionStripView.dismissToolbarControls();
+            if (mSettings.getCurrent().mToolbarMode == ToolbarMode.EXPANDABLE)
+                mSuggestionStripView.setToolbarVisibility(false);
+        }
         mKeyboardSwitcher.onHideWindow();
 
         if (TRACE) Debug.stopMethodTracing();
