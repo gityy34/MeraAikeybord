@@ -198,4 +198,18 @@ and test sources at `fcc98c60437c2447415c85fc5e1a6e39a6674f15`. All 54 tests
 passed, including six toolbar state tests and 48 keyboard regression tests.
 See <https://github.com/gityy34/MeraAikeybord/actions/runs/44662569884/artifacts/14595109961>.
 There were no manifest or dependency changes. Phone checks for menu placement,
-long-press dragging, docking and TalkBack remain pending. No APK was built.
+long-press dragging, docking and TalkBack remain pending.
+
+The owner approved the Debug APK for personal testing. Build run 44664130048 used
+`9712f429dbeb30c75492c77554dbf72ff616a90a`. The only app change from the tested
+source is the version bump. The APK is `HeliBoard_4.3-beta1-v4-debug.apk` with
+version code `4302` and size 27,321,879 bytes. Download it from
+<https://github.com/gityy34/MeraAikeybord/actions/runs/44664130048/artifacts/14597202016>.
+
+CI verified the v1 and v2 signatures, package and version metadata, packaged
+toolbar resources, and Urdu layout asset. The APK has no internet permission.
+Its SHA-256 is
+`269b8209bd00292968c2ef155b5629522a078c697dfb0040302edd358622a6b9`.
+The Debug certificate differs from v3. Back up the old test app's settings
+before removing it to install v4. Emulator installation was unavailable because
+the runner lacked KVM access. The next newly approved APK is v5 with code 4303.
