@@ -1,0 +1,190 @@
+name: Verify the v7 toolbar with suggestions enabled
+on:
+  push:
+    branches: ['codex/verify-idle-toolbar-v7-c0e454bb']
+    paths: ['.github/workflows/verify-idle-toolbar-v7-device.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  device:
+    if: github.event.before == 'c0e454bbc04e7dc59d922a646212f6f7bc7fbd69'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeraAiKeyboard-v7-debug
+          run-id: '44873870872'
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/idle-toolbar-v7
+      - name: Match the verified APK
+        env:
+          APK_SHA: '889e330872aaa48e954f0ae7087f1400bb0ce8b8e4c3931773d3d908b400e103'
+        working-directory: ${{ runner.temp }}/idle-toolbar-v7
+        run: printf '%s  HeliBoard_4.3-beta1-v7-debug.apk\n' "$APK_SHA" | sha256sum -c -
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install the verified APK and check IME registration
+        shell: bash
+        run: |
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avds"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          accel=()
+          if [[ -c /dev/kvm && ( ! -r /dev/kvm || ! -w /dev/kvm ) ]]; then
+            sudo chown "$(id -u):$(id -g)" /dev/kvm
+            sudo chmod u+rw /dev/kvm
+          fi
+          if [[ ! -c /dev/kvm || ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            echo 'KVM unavailable, attempting software emulation.'
+            accel=(-accel off)
+          fi
+          image='system-images;android-30;default;x86_64'
+          timeout 240s sdkmanager --install emulator "$image"
+          avd_name='toolbar_v7_install'
+          avd_path="$ANDROID_AVD_HOME/$avd_name.avd"
+          printf 'no\n' | timeout 45s avdmanager create avd --force --name "$avd_name" --package "$image" --device pixel --path "$avd_path"
+          test -s "$avd_path/config.ini"
+          test -s "$ANDROID_AVD_HOME/$avd_name.ini"
+          emulator="$ANDROID_HOME/emulator/emulator"
+          "$emulator" -list-avds | grep -Fx "$avd_name"
+          emu_log="$(mktemp)"
+          "$emulator" -avd "$avd_name" -port 5554 -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect "${accel[@]}" > "$emu_log" 2>&1 &
+          emu_pid=$!
+          trap 'timeout 5s adb -s emulator-5554 emu kill >/dev/null 2>&1 || kill "$emu_pid" 2>/dev/null || true' EXIT
+          deadline=$((SECONDS + 180))
+          booted=0
+          while (( SECONDS < deadline )) && kill -0 "$emu_pid" 2>/dev/null; do
+            if [[ "$(timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then
+              booted=1
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$booted" != 1 ]]; then
+            tail -n 40 "$emu_log"
+            exit 1
+          fi
+          timeout 90s adb -s emulator-5554 install -t "$RUNNER_TEMP/idle-toolbar-v7/HeliBoard_4.3-beta1-v7-debug.apk"
+          timeout 20s adb -s emulator-5554 shell pm path helium314.keyboard.debug
+          echo 'APK_EMULATOR_INSTALL=passed (Android API 30)'
+          # Configure a fresh emulator to match the one-pinned-microphone case.
+          # Settings search normally requests that the IME suppress suggestions.
+          package=helium314.keyboard.debug
+          prefs_dir="/data/user_de/0/$package/shared_prefs"
+          prefs_file="$prefs_dir/${package}_preferences.xml"
+          timeout 15s adb -s emulator-5554 shell am force-stop "$package"
+          timeout 15s adb -s emulator-5554 shell run-as "$package" mkdir -p "$prefs_dir"
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>' '<map><boolean name="always_show_suggestions" value="true" /><string name="pinned_toolbar_keys">VOICE:true</string></map>' |
+            timeout 15s adb -s emulator-5554 shell -T "run-as $package sh -c 'cat > $prefs_file'"
+          timeout 15s adb -s emulator-5554 shell run-as "$package" cat "$prefs_file" | grep -F 'VOICE:true'
+          echo 'FIXTURE=one pinned microphone with suggestions enabled for Settings search'
+          ime_id=''
+          for attempt in {1..15}; do
+            available="$(timeout 10s adb -s emulator-5554 shell ime list -a -s | tr -d '\r')"
+            ime_id="$(printf '%s\n' "$available" | awk '/^helium314[.]keyboard[.]debug\// { print; exit }')"
+            if [[ -n "$ime_id" ]]; then break; fi
+            sleep 2
+          done
+          printf 'Available input methods:\n%s\n' "$available"
+          if [[ -z "$ime_id" ]]; then
+            timeout 20s adb -s emulator-5554 shell cmd package query-services --brief -a android.view.InputMethod -p helium314.keyboard.debug || true
+            timeout 15s adb -s emulator-5554 logcat -d -s InputMethodManagerService PackageManager | tail -n 50 || true
+            exit 1
+          fi
+          timeout 20s adb -s emulator-5554 shell ime enable "$ime_id"
+          timeout 20s adb -s emulator-5554 shell ime set "$ime_id"
+          selected="$(timeout 15s adb -s emulator-5554 shell settings get secure default_input_method | tr -d '\r')"
+          [[ "$selected" == "$ime_id" ]]
+          printf 'IME_SELECTED=%s\n' "$ime_id"
+          mkdir -p "$RUNNER_TEMP/v7-ui"
+          python3 - <<'PY'
+          import os
+          import re
+          import struct
+          import subprocess
+          import time
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          output = Path(os.environ["RUNNER_TEMP"]) / "v7-ui"
+
+          def adb(*args, timeout=20):
+              return subprocess.check_output(["adb", "-s", "emulator-5554", *args], timeout=timeout)
+
+          def bounds(node):
+              match = re.fullmatch(r"\[(\d+),(\d+)]\[(\d+),(\d+)]", node.get("bounds", ""))
+              return tuple(map(int, match.groups())) if match else None
+
+          def snapshot(name):
+              adb("shell", "uiautomator", "dump", "/data/local/tmp/v7-view.xml")
+              xml = adb("exec-out", "cat", "/data/local/tmp/v7-view.xml")
+              (output / f"{name}.xml").write_bytes(xml)
+              (output / f"{name}.png").write_bytes(adb("exec-out", "screencap", "-p"))
+              return tuple(ElementTree.fromstring(xml).iter("node"))
+
+          def find(nodes, predicate):
+              return next((node for node in nodes if bounds(node) and predicate(node)), None)
+
+          def by_id(nodes, name):
+              return find(nodes, lambda node: node.get("resource-id", "").endswith(":id/" + name))
+
+          def tap(node):
+              left, top, right, bottom = bounds(node)
+              adb("shell", "input", "tap", str((left+right)//2), str((top+bottom)//2))
+              time.sleep(1)
+
+          class ProbeUnavailable(Exception):
+              pass
+
+          def probe():
+              adb("shell", "am", "start", "-W", "-a", "android.settings.SETTINGS")
+              initial = snapshot("settings")
+              search = by_id(initial, "search_action_bar")
+              if search is None:
+                  search = find(initial, lambda node:
+                      "search settings" in (node.get("text", "") + node.get("content-desc", "")).lower())
+              if search is None:
+                  raise ProbeUnavailable("Android Settings search was not exposed")
+              tap(search)
+              search_screen = snapshot("search")
+              field = find(search_screen, lambda node: node.get("class") == "android.widget.EditText")
+              if field is not None:
+                  tap(field)
+              snapshot("keyboard")
+              width, height = struct.unpack(">II", (output / "keyboard.png").read_bytes()[16:24])
+              if (width, height) != (1080, 1920):
+                  raise ProbeUnavailable(f"the device was not 1080 by 1920: {width} by {height}")
+              # Tap the letter keys of the keyboard itself, rather than injecting text.
+              for x, y in [(650, 1380), (272, 1217), (970, 1380), (970, 1380), (916, 1217)]:
+                  adb("shell", "input", "tap", str(x), str(y))
+              time.sleep(1)
+              typing = snapshot("typing")
+              if find(typing, lambda node: node.get("class") == "android.widget.EditText" and
+                      node.get("text", "").strip().casefold() == "hello") is None:
+                  raise ProbeUnavailable("the keyboard taps did not produce the sample word")
+              adb("shell", "input", "tap", "865", "1695")
+              time.sleep(1)
+              period = snapshot("period")
+              if find(period, lambda node: node.get("class") == "android.widget.EditText" and
+                      node.get("text", "").strip().casefold() == "hello.") is None:
+                  raise ProbeUnavailable("the keyboard tap did not append a full stop")
+              print("TYPING_CAPTURE=complete; keyboard keys committed hello and a full stop")
+          try:
+              probe()
+          except (ProbeUnavailable, subprocess.SubprocessError, ElementTree.ParseError) as error:
+              print(f"TYPING_CAPTURE=unavailable; {error}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: keyboard-v7-active-suggestions-screens
+          path: ${{ runner.temp }}/v7-ui
+          if-no-files-found: ignore
