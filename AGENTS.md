@@ -313,5 +313,31 @@ regression tests, with zero failures, errors, and skips.
 [Test reports](https://github.com/gityy34/MeraAikeybord/actions/runs/44717712143/artifacts/14620451908). Static review confirmed the
 edge-control order in the layout and that the manifest and dependencies were
 unchanged. The toolbar uses cached input state without adding text logging
-or network access. Device verification of this change and a newly approved APK
-build remain pending.
+or network access.
+
+## Idle toolbar Debug APK revision 7
+
+On 2026-11-21 the owner approved a Debug APK for phone testing. Build run
+44873870872 used `c0e454bbc04e7dc59d922a646212f6f7bc7fbd69`, which adds only version
+metadata to the source that passed 64 tests. The APK is
+`HeliBoard_4.3-beta1-v7-debug.apk` with version code `4305` and size
+27,347,577 bytes. [Download the Debug APK](https://github.com/gityy34/MeraAikeybord/actions/runs/44873870872/artifacts/14695625351).
+
+CI verified archive integrity, alignment, v1 and v2 signatures, the packaged
+Urdu layout and fixed voice slot, and the absence of internet permission.
+The APK SHA-256 is
+`889e330872aaa48e954f0ae7087f1400bb0ce8b8e4c3931773d3d908b400e103`.
+The device job matched that hash, installed the APK on Android 11 (API 30),
+and enabled and selected the keyboard.
+
+Run 44874572298 used the same APK with suggestions enabled for the Settings
+search field and only the microphone pinned. In the screenshots the center
+showed tools on opening, suggestions while typing, and the same tools after
+an English full stop. The left tools button stayed in place in all three
+states. The emulator had no voice-input provider, so the right microphone
+and the Urdu full-stop transition remain for device checks.
+[Emulator screenshots](https://github.com/gityy34/MeraAikeybord/actions/runs/44874572298/artifacts/14694904548).
+
+The Debug certificate differs from revision 6. Save a backup in Advanced
+settings before removing revision 6 to install revision 7. The next newly
+approved APK revision is v8 with code 4306.
