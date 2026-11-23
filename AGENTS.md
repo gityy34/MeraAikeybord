@@ -380,5 +380,25 @@ and tests and passed all 61 targeted cases without failures or skips. It covered
 21 AI cases, 24 Roman Urdu cases, and 16 toolbar editor cases. The earlier full
 Debug suite reported two grapheme iterator failures and did not finish. The
 targeted AI panel tests use a simulated editor and provider. Real provider
-behavior, Android Keystore persistence on a device, and on-device IME behavior
-remain unverified. No Phase 2 APK has been built.
+behavior, Android Keystore persistence on a device, and on-device AI editing
+remain unverified.
+
+## AI Assistant Debug APK revision 8
+
+GitHub Actions run [45099720861](https://github.com/gityy34/MeraAikeybord/actions/runs/45099720861)
+built product commit [0cb38ceb](https://github.com/gityy34/MeraAikeybord/commit/0cb38ceb283f54f9bf0122740c51cfd763ed99ea).
+The file is `HeliBoard_4.3-beta1-v8-debug.apk`, version code `4306`,
+27,455,110 bytes. [Download the Debug APK](https://github.com/gityy34/MeraAikeybord/actions/runs/45099720861/artifacts/14785480609).
+The APK SHA-256 is
+`d16630764795e096104af9fa3aecc9cc9dfceb1593b7daef07471c71bc7484d5`.
+
+The build verified APK archive integrity, alignment, v1 and v2 signatures,
+package metadata, the cleartext traffic prohibition, AI and toolbar resources,
+and an identical packaged Urdu layout. A separate job matched the APK hash,
+installed the exact artifact on Android 11 (API 30), and enabled and selected
+the keyboard. Real provider and physical phone checks remain pending.
+
+The v8 Debug certificate differs from the v7 Debug certificate. Export a
+keyboard settings backup before uninstalling v7, then install v8 and restore
+the backup. The next newly approved build revision is v9 with version code
+4307.
