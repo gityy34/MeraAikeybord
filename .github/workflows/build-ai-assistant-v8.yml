@@ -1,0 +1,141 @@
+name: Build approved AI Assistant Debug APK v8
+
+on:
+  push:
+    branches: ['codex/build-ai-assistant-v8']
+    paths: ['.github/workflows/build-ai-assistant-v8.yml']
+
+permissions:
+  contents: read
+
+env:
+  APK_NAME: HeliBoard_4.3-beta1-v8-debug.apk
+  APK_ARTIFACT: MeraAiKeyboard-v8-debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      apk_sha256: ${{ steps.verify.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0cb38ceb283f54f9bf0122740c51cfd763ed99ea
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Assemble approved Debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+      - name: Verify packaged APK
+        id: verify
+        shell: bash
+        run: |
+          apk="app/build/outputs/apk/debug/$APK_NAME"
+          test -s "$apk"
+          unzip -tq "$apk"
+          sdk_tools="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner -print | sort -V | tail -n 1)")"
+          "$sdk_tools/zipalign" -c 4 "$apk"
+          "$sdk_tools/apksigner" verify --verbose --print-certs "$apk"
+          badging="$("$sdk_tools/aapt2" dump badging "$apk")"
+          printf '%s\n' "$badging" | awk '/^package:|^sdkVersion:|^targetSdkVersion:|^native-code:|^uses-permission:/'
+          [[ "$badging" == *"name='helium314.keyboard.debug' versionCode='4306' versionName='4.3-beta1-v8'"* ]]
+          [[ "$badging" == *"android.permission.INTERNET"* ]]
+          "$sdk_tools/aapt2" dump xmltree "$apk" --file AndroidManifest.xml > "$RUNNER_TEMP/v8-manifest.txt"
+          rg 'usesCleartextTraffic.*false' "$RUNNER_TEMP/v8-manifest.txt"
+          "$sdk_tools/aapt2" dump resources "$apk" | awk '
+            /string\/ai_assistant/ { assistant = 1 }
+            /string\/ai_test_connection/ { connection = 1 }
+            /string\/ai_result_preview/ { preview = 1 }
+            /drawable\/ic_ai_assistant/ { icon = 1 }
+            /id\/toolbar_voice_slot/ { toolbar = 1 }
+            END { if (!(assistant && connection && preview && icon && toolbar)) exit 1 }'
+          unzip -p "$apk" assets/layouts/main/urdu.json | cmp app/src/main/assets/layouts/main/urdu.json -
+          stat -c 'APK bytes: %s' "$apk"
+          sha256sum "$apk"
+          printf 'sha256=%s\n' "$(sha256sum "$apk" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APK_ARTIFACT }}
+          path: app/build/outputs/apk/debug/${{ env.APK_NAME }}
+          if-no-files-found: error
+
+  device:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.APK_ARTIFACT }}
+          path: ${{ runner.temp }}/mera-ai-v8
+      - name: Match the verified build output
+        env:
+          APK_SHA: ${{ needs.build.outputs.apk_sha256 }}
+        working-directory: ${{ runner.temp }}/mera-ai-v8
+        run: printf '%s  %s\n' "$APK_SHA" "$APK_NAME" | sha256sum -c -
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install APK and select the IME on Android 11
+        shell: bash
+        run: |
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avds"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          if [[ -c /dev/kvm && ( ! -r /dev/kvm || ! -w /dev/kvm ) ]]; then
+            sudo chown "$(id -u):$(id -g)" /dev/kvm
+            sudo chmod u+rw /dev/kvm
+          fi
+          accel=()
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            accel=(-accel off)
+          fi
+          image='system-images;android-30;default;x86_64'
+          timeout 300s sdkmanager --install emulator "$image"
+          avd='mera_ai_v8'
+          printf 'no\n' | timeout 45s avdmanager create avd --name "$avd" --package "$image" --device pixel --path "$ANDROID_AVD_HOME/$avd.avd"
+          emu_log="$(mktemp)"
+          "$ANDROID_HOME/emulator/emulator" -avd "$avd" -port 5554 -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect "${accel[@]}" > "$emu_log" 2>&1 &
+          emu_pid=$!
+          trap 'timeout 5s adb -s emulator-5554 emu kill >/dev/null 2>&1 || kill "$emu_pid" 2>/dev/null || true' EXIT
+          deadline=$((SECONDS + 180))
+          booted=0
+          while (( SECONDS < deadline )) && kill -0 "$emu_pid" 2>/dev/null; do
+            if [[ "$(timeout 5s adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then
+              booted=1
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$booted" != 1 ]]; then
+            tail -n 40 "$emu_log"
+            exit 1
+          fi
+          timeout 90s adb -s emulator-5554 install -t "$RUNNER_TEMP/mera-ai-v8/$APK_NAME"
+          timeout 20s adb -s emulator-5554 shell pm path helium314.keyboard.debug
+          echo 'APK_EMULATOR_INSTALL=passed (Android API 30)'
+          ime=''
+          for attempt in {1..15}; do
+            ime="$(timeout 10s adb -s emulator-5554 shell ime list -a -s | tr -d '\r' | awk '/^helium314[.]keyboard[.]debug\// { print; exit }')"
+            [[ -n "$ime" ]] && break
+            sleep 2
+          done
+          [[ -n "$ime" ]]
+          timeout 20s adb -s emulator-5554 shell ime enable "$ime"
+          timeout 20s adb -s emulator-5554 shell ime set "$ime"
+          selected="$(timeout 15s adb -s emulator-5554 shell settings get secure default_input_method | tr -d '\r')"
+          [[ "$selected" == "$ime" ]]
+          printf 'IME_SELECTED=%s\n' "$ime"
