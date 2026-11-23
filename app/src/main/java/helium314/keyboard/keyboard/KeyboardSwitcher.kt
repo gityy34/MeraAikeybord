@@ -22,6 +22,7 @@ import android.view.inputmethod.InputMethodSubtype
 import android.widget.HorizontalScrollView
 import android.widget.Toast
 import androidx.core.view.isGone
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
 import helium314.keyboard.event.Event
 import helium314.keyboard.keyboard.KeyboardLayoutSet.Companion.KeyboardLayoutSetException
@@ -225,7 +226,10 @@ class KeyboardSwitcher private constructor() {
         }
         val stripContainer = inputView.stripContainer
         val stripHeight = if (stripContainer.isShown) stripContainer.height else 0
-        var visibleTopY = inputHeight - (if (visibleKeyboardView.isShown) visibleKeyboardView.height else 0) - stripHeight
+        val assistantPanel = inputView.mainKeyboardFrame.aiAssistantPanel
+        val assistantHeight = if (assistantPanel.isShown) assistantPanel.height else 0
+        var visibleTopY = inputHeight - (if (visibleKeyboardView.isShown) visibleKeyboardView.height else 0) -
+            stripHeight - assistantHeight
         if (Settings.getValues().mIsFloatingKeyboard)
             visibleTopY = themeContext.resources.displayMetrics.heightPixels
 
@@ -292,7 +296,14 @@ class KeyboardSwitcher private constructor() {
 
     fun onHideWindow() {
         inputView?.suggestionStripView?.dismissToolbarControls()
+        inputView?.suggestionStripView?.dismissAiAssistant()
         inputView?.keyboardView?.onHideWindow()
+    }
+
+    internal fun onAssistantPanelVisibilityChanged() {
+        val root = inputView?.root ?: return
+        if (Settings.getValues().mIsFloatingKeyboard && root.isAttachedToWindow)
+            root.doOnNextLayout { FloatingKeyboardUtils.setFloating(root) }
     }
 
     fun onWindowShown() {

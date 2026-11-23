@@ -42,6 +42,11 @@ import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.AudioAndHapticFeedbackManager
 import helium314.keyboard.latin.InputStyle
+import helium314.keyboard.latin.LatinIME
+import helium314.keyboard.latin.assistant.AiAssistantPanel
+import helium314.keyboard.latin.assistant.AiAssistantSettings
+import helium314.keyboard.latin.assistant.AiFeatureManager
+import helium314.keyboard.latin.assistant.AiPrivacyManager
 import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
@@ -134,9 +139,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val suggestionsStrip: ViewGroup = findViewById(R.id.suggestions_strip)
     private val toolbarExpandKey = findViewById<ImageButton>(R.id.suggestions_strip_toolbar_key)
     private val toolbarMenuKey = findViewById<ImageButton>(R.id.suggestions_strip_tools_menu)
+    private val assistantKey = findViewById<ImageButton>(R.id.toolbar_ai_assistant)
     private val panelShortcuts = findViewById<LinearLayout>(R.id.toolbar_panel_shortcuts)
     private val panelShortcutScroller = findViewById<HorizontalScrollView>(R.id.toolbar_panel_shortcuts_scroller)
     private var toolbarPanel: ToolbarToolsPanel? = null
+    private var assistantPanel: AiAssistantPanel? = null
+    private val assistantSettings = AiAssistantSettings(context.prefs())
+    private var assistantState = assistantSettings.read()
+    private var assistantFeatures: AiFeatureManager? = null
     private var toolbarDraft: ToolbarEditorState? = null
     private var panelTools = emptyList<ToolbarKey>()
     private var obscuredViews = emptyList<Pair<View, Int>>()
@@ -185,6 +195,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbarMenuKey.setOnClickListener { onToolsButtonPressed() }
         colors.setColor(toolbarMenuKey, ColorType.TOOL_BAR_KEY)
         colors.setBackground(toolbarMenuKey, ColorType.STRIP_BACKGROUND)
+        colors.setColor(assistantKey, ColorType.TOOL_BAR_KEY)
+        colors.setBackground(assistantKey, ColorType.STRIP_BACKGROUND)
+        assistantKey.setOnClickListener {
+            if (isShowingAiAssistant) closeAiAssistant(animated = true) else openAiAssistant()
+        }
         addToolbarButton(voiceSlot, ToolbarKey.VOICE)
         panelShortcutScroller.setOnDragListener { _, event -> onShortcutDrag(event) }
         refreshToolbarButtons()
@@ -226,6 +241,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     val isShowingMoreSuggestionPanel get() = moreSuggestionsView.isShowingInParent
     val isShowingToolbarPanel get() = toolbarPanel?.isVisible == true
+    val isShowingAiAssistant get() = assistantPanel?.isVisible == true
 
     /** A connection back to the input method. */
     fun setListener(newListener: Listener, inputView: View) {
@@ -234,6 +250,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         moreSuggestionsView.mainKeyboardView = inputView.findViewById(R.id.keyboard_view)
         toolbarPanel = inputView.findViewById(R.id.toolbar_tools_panel)
         toolbarPanel?.layoutDirection = layoutDirection
+        assistantPanel = inputView.findViewById(R.id.ai_assistant_panel)
+        assistantPanel?.layoutDirection = layoutDirection
         updateToolbarButtons()
         refreshPinnedKeys()
     }
@@ -253,6 +271,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         pinnedKeys.layoutDirection = newLayoutDirection
         panelShortcutScroller.layoutDirection = newLayoutDirection
         toolbarPanel?.layoutDirection = newLayoutDirection
+        assistantPanel?.layoutDirection = newLayoutDirection
     }
 
     fun setToolbarVisibility(toolbarVisible: Boolean) {
@@ -280,6 +299,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         suggestionsStrip.isVisible = !panelOpen && !showQuickTools
         toolbarContainer.isVisible = showQuickTools
         voiceSlot.isVisible = !panelOpen && contextual && settings.mShowsVoiceInputKey
+        assistantKey.isVisible = toolbarDraft == null && assistantState.showToolbarIcon && canOpenAiAssistant()
         panelShortcutScroller.isVisible = panelOpen
         if (DEBUG_SUGGESTIONS) {
             for (view in debugInfoViews) {
@@ -352,6 +372,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     fun handleToolbarBack(): Boolean {
+        if (isShowingAiAssistant) {
+            closeAiAssistant(animated = true)
+            return true
+        }
         if (!isShowingToolbarPanel) return false
         if (toolbarDraft == null) dismissToolbarControls()
         else {
@@ -364,6 +388,15 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     // overrides: necessarily public, but not used from outside
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String?) {
+        val assistantPreferenceChanged = AiAssistantSettings.handles(key)
+        if (key == null || assistantPreferenceChanged) {
+            assistantState = assistantSettings.read()
+            if (!assistantState.canOpenPanel || !canOpenAiAssistant()) dismissAiAssistant()
+            else if (isShowingAiAssistant) bindAiAssistant()
+            toolbarPanel?.updateAssistantEntry(aiAssistantEntry())
+            applyStripVisibility()
+            if (assistantPreferenceChanged) return
+        }
         when (key) {
             Settings.PREF_TOOLBAR_KEYS -> {
                 refreshToolbarButtons()
@@ -389,7 +422,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         super.onVisibilityChanged(view, visibility)
         // workaround for a bug with inline suggestions views that just keep showing up otherwise, https://github.com/HeliBorg/HeliBoard/pull/386
         if (view === this) {
-            if (visibility != VISIBLE) dismissToolbarControls()
+            if (visibility != VISIBLE) {
+                dismissToolbarControls()
+                dismissAiAssistant()
+            }
             if (visibility == VISIBLE) applyStripVisibility() else suggestionsStrip.visibility = visibility
         }
     }
@@ -397,6 +433,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         dismissToolbarControls()
+        dismissAiAssistant()
         dismissMoreSuggestionsPanel()
     }
 
@@ -594,6 +631,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val show = Settings.getValues().mShowsVoiceInputKey
         toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         if (!canOpenToolbarControls()) dismissToolbarControls()
+        if (isShowingAiAssistant && !canOpenAiAssistant()) dismissAiAssistant()
         updateToolbarButtons()
         refreshPinnedKeys()
     }
@@ -650,6 +688,64 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             !settings.mInputAttributes.mIsPasswordField
     }
 
+    private fun aiAssistantEntry(): AiAssistantEntry? {
+        if (!assistantState.showToolsEntry || !canOpenAiAssistant()) return null
+        return AiAssistantEntry(assistantState.pinned, ::openAiAssistant) {
+            val current = assistantSettings.read()
+            if (canOpenAiAssistant() && current.showToolsEntry)
+                assistantSettings.setPinned(!current.pinned)
+        }
+    }
+
+    private fun canOpenAiAssistant(): Boolean {
+        if (!canOpenToolbarControls()) return false
+        val settings = Settings.getValues()
+        val host = if (::listener.isInitialized) listener as? LatinIME else null
+        val info = host?.currentInputEditorInfo ?: return false
+        return AiPrivacyManager.permits(info.inputType, info.imeOptions, settings.mIncognitoModeEnabled, settings.mIsLocked)
+    }
+
+    private fun openAiAssistant() {
+        val panel = assistantPanel ?: return
+        if (!canOpenAiAssistant() || !assistantState.canOpenPanel || toolbarDraft != null) return
+        dismissToolbarControls()
+        dismissMoreSuggestionsPanel()
+        val host = listener as? LatinIME ?: return
+        assistantFeatures = AiFeatureManager(
+            panel, assistantSettings,
+            activeEditor = { if (canOpenAiAssistant()) host.aiEditor else null },
+            onApplied = host::onAiTextApplied,
+            onClose = { closeAiAssistant(animated = true) },
+            onResize = { KeyboardSwitcher.getInstance().onAssistantPanelVisibilityChanged() },
+            onConfigurationChanged = host::onAiConfigurationChanged,
+        )
+        assistantFeatures?.showTools()
+        panel.reveal()
+        assistantKey.isActivated = true
+        assistantKey.contentDescription = context.getString(R.string.ai_close)
+        KeyboardSwitcher.getInstance().onAssistantPanelVisibilityChanged()
+    }
+
+    private fun bindAiAssistant() {
+        assistantFeatures?.showTools()
+    }
+
+    fun isConfiguringAi() = assistantFeatures?.isConfiguring() == true
+    fun routeAiConfigurationKey(key: Int, code: Int) = assistantFeatures?.routeKey(key, code) == true
+    fun routeAiConfigurationText(text: String) = assistantFeatures?.routeText(text) == true
+
+    fun dismissAiAssistant() = closeAiAssistant(animated = false)
+
+    private fun closeAiAssistant(animated: Boolean) {
+        assistantFeatures?.clear()
+        assistantFeatures = null
+        assistantPanel?.dismiss(animated) {
+            assistantKey.isActivated = false
+            assistantKey.contentDescription = context.getString(R.string.ai_assistant)
+            KeyboardSwitcher.getInstance().onAssistantPanelVisibilityChanged()
+        }
+    }
+
     private fun onToolsButtonPressed() {
         val panel = toolbarPanel ?: return
         if (!canOpenToolbarControls() || !::listener.isInitialized || !toolbarMenuKey.isShown) return
@@ -662,6 +758,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         } else if (panel.isVisible) {
             dismissToolbarControls()
         } else {
+            dismissAiAssistant()
             val wrapper = panel.parent as? ViewGroup ?: return
             val keyboardView = moreSuggestionsView.mainKeyboardView
             val keyboard = keyboardView.keyboard ?: return
@@ -704,7 +801,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (draft == null) {
             val gridOrder = getToolbarGridOrder(context.prefs())
             val unpinned = (gridOrder + panelTools).distinct().filter { it in panelTools && it !in pins }
-            panel.showTools(unpinned, ::activatePanelTool) {
+            panel.showTools(unpinned, ::activatePanelTool, aiAssistantEntry()) {
                 toolbarDraft = ToolbarEditorState(panelTools, pins.filterNotNull(), gridOrder, configuredPinLocks)
                 renderToolPanel()
             }

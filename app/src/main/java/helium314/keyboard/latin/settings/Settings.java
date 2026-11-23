@@ -30,6 +30,8 @@ import helium314.keyboard.latin.InputAttributes;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.RichInputMethodManager;
 import helium314.keyboard.latin.RichInputMethodSubtype;
+import helium314.keyboard.latin.assistant.AiAssistantSettings;
+import helium314.keyboard.latin.assistant.AiApiSettings;
 import helium314.keyboard.latin.common.StringUtils;
 import helium314.keyboard.latin.suggestions.PunctuationSuggestions;
 import helium314.keyboard.latin.utils.DeviceProtectedUtils;
@@ -223,6 +225,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     // preferences that are not used in SettingsValues and thus should not trigger reload when changed
     private static boolean reloadOnChanged(String key) {
+        if (AiAssistantSettings.handles(key) || AiApiSettings.handles(key)) return false;
         return switch (key) {
             case PREF_LAST_SHOWN_EMOJI_CATEGORY_PAGE_ID, PREF_LAST_SHOWN_EMOJI_CATEGORY_ID, PREF_RECENT_EMOJIS,
                  PREF_DONT_SHOW_MISSING_DICTIONARY_DIALOG, PREF_SELECTED_SUBTYPE -> false;

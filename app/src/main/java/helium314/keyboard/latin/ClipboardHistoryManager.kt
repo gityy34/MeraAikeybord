@@ -23,6 +23,7 @@ import helium314.keyboard.event.Event
 import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
+import helium314.keyboard.latin.assistant.AiPrivacyManager
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.isValidNumber
@@ -76,6 +77,7 @@ class ClipboardHistoryManager(
         if (clipData.itemCount == 0) return
         val clipItem = clipData.getItemAt(0) ?: return
         val description = clipData.description ?: return
+        if (description.hasMimeType(AiPrivacyManager.AI_CLIP_MIME)) return
         val timeStamp = ClipboardManagerCompat.getClipTimestamp(clipData)
 
         if (description.hasMimeType("text/*")) {
@@ -188,6 +190,7 @@ class ClipboardHistoryManager(
         if (dontShowCurrentSuggestion) return null
         if (parent == null) return null
         val clipData = clipboardManager.primaryClip ?: return null
+        if (clipData.description.hasMimeType(AiPrivacyManager.AI_CLIP_MIME)) return null
         if (clipData.itemCount == 0) return null
         val clipItem = clipData.getItemAt(0) ?: return null
         val hasText = clipData.description?.hasMimeType("text/*") == true

@@ -138,9 +138,9 @@ Before major work resolve unanswered decisions: testing mode; initial AI feature
 and offline requirements; Debug versus signed Release; minimum supported Android.
 Do not ask again for already answered choices. Earlier user preferences establish
 Android, working Urdu/English, offline Roman Urdu and fast/local core typing, with
-personal testing before public distribution. They have not yet selected a minimum
-Android version or an initial AI feature. Current source minSdk is 21, which is an
-existing configuration, not a newly confirmed user requirement.
+personal testing before public distribution. They selected an offline AI
+Assistant preview for Phase 1. They have not yet selected a minimum Android
+version. Current source minSdk is 21, which is an existing configuration.
 
 The previous Roman Urdu prototype passed 11 targeted CI tests and built a Debug
 APK at commit bfb11c224bef5c6add305cc6626e5621b3b9706a in workflow 44246942835.
@@ -341,3 +341,44 @@ and the Urdu full-stop transition remain for device checks.
 The Debug certificate differs from revision 6. Save a backup in Advanced
 settings before removing revision 6 to install revision 7. The next newly
 approved APK revision is v8 with code 4306.
+
+## AI Assistant Phase 1
+
+The assistant preview is off by default. It has its own Settings destination
+with visibility, pin, panel and per-tool preferences. The first Tools page
+offers the Assistant tile and an independent pin toggle. The toolbar icon and
+the tile share the same saved pin. Turning off the preview hides its entry
+points while keeping the user's choices for the next enable.
+
+The preview opens as a slim row between suggestions and the keyboard. Fix
+Grammar, Rewrite AI, Change Tone and Translate pass only a tool identifier
+through `AiAssistant` to `PreviewAiProvider`. The provider returns the
+disconnected message. No code in that path has access to the input connection
+or a network client. A future connected provider needs a separately approved
+text-input boundary, consent behavior and secure configuration. Password fields
+and a locked device suppress the entry points.
+
+The existing testing and APK approval rules apply. An approved device build
+should verify the tile, pin across restarts, panel height in portrait and
+landscape, individual tool feedback, and preservation of typing and clipboard.
+
+## AI Assistant Phase 2
+
+The owner authorized a configurable HTTPS provider for the existing assistant.
+See [the API contract and testing plan](docs/AI_API.md). Requests require an
+explicit Send or Retry and use selected text by default. The in-keyboard panel
+contains the scope, tools, preview, Apply, Undo, cancellation and API settings.
+The shared Android Settings screen also offers the API settings form. Password,
+numeric, incognito and private-input fields suppress assistant access. Keys
+require secure storage on Android 6 or newer and are excluded from backup.
+No live endpoint has been configured in the workspace. Additional testing
+follows Mode A. The owner approved a Debug APK for personal testing on
+2026-11-23. The approved revision is v8 with version code 4306.
+
+The approved local Debug unit-test run on 2026-11-22 compiled the application
+and tests and passed all 61 targeted cases without failures or skips. It covered
+21 AI cases, 24 Roman Urdu cases, and 16 toolbar editor cases. The earlier full
+Debug suite reported two grapheme iterator failures and did not finish. The
+targeted AI panel tests use a simulated editor and provider. Real provider
+behavior, Android Keystore persistence on a device, and on-device IME behavior
+remain unverified. No Phase 2 APK has been built.

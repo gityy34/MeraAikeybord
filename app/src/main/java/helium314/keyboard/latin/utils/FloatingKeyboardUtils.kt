@@ -35,7 +35,8 @@ object FloatingKeyboardUtils {
                 ?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
             windowFrame.bottom -= navBarBottom
         }
-        extraHeight = getSuggestionStripHeight(view.resources) + getFloatingHandleHeight(view.resources)
+        val assistantHeight = view.findViewById<View>(R.id.ai_assistant_panel)?.takeIf { it.isVisible }?.height ?: 0
+        extraHeight = getSuggestionStripHeight(view.resources) + getFloatingHandleHeight(view.resources) + assistantHeight
         val (x, y) = readPosition(
             view.context,
             windowFrame.right - windowFrame.left - Settings.getValues().mFloatingWidth,

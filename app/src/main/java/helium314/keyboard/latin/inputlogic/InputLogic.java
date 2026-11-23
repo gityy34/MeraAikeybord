@@ -2149,6 +2149,12 @@ public final class InputLogic {
         mConnection.resetCachesUponCursorMoveAndReturnSuccess(newSelStart, newSelEnd, shouldFinishComposition);
     }
 
+    public void onAiTextApplied(int start, int end) {
+        mSpaceState = SpaceState.NONE;
+        resetComposingState(true);
+        mConnection.resetCachesUponCursorMoveAndReturnSuccess(start, end, false);
+    }
+
     /**
      * Resets only the composing state.
      * <p>

@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InlineSuggestion;
 import android.view.inputmethod.InlineSuggestionsRequest;
 import android.view.inputmethod.InlineSuggestionsResponse;
+import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodSubtype;
 
 import helium314.keyboard.accessibility.AccessibilityUtils;
@@ -45,6 +46,8 @@ import helium314.keyboard.keyboard.KeyboardId;
 import helium314.keyboard.keyboard.KeyboardLayoutSet;
 import helium314.keyboard.keyboard.KeyboardSwitcher;
 import helium314.keyboard.keyboard.MainKeyboardView;
+import helium314.keyboard.latin.assistant.AiEditor;
+import helium314.keyboard.latin.assistant.AiPrivacyManager;
 import helium314.keyboard.latin.common.ColorType;
 import helium314.keyboard.latin.common.Constants;
 import helium314.keyboard.latin.common.InputPointers;
@@ -697,6 +700,7 @@ public class LatinIME extends InputMethodService implements
 
     @Override
     public void onStartInput(final EditorInfo editorInfo, final boolean restarting) {
+        mAiEditorRevision++;
         mHandler.onStartInput(editorInfo, restarting);
     }
 
@@ -950,7 +954,10 @@ public class LatinIME extends InputMethodService implements
     }
 
     private void cleanupInternalStateForFinishInput() {
-        if (hasSuggestionStripView()) mSuggestionStripView.dismissToolbarControls();
+        if (hasSuggestionStripView()) {
+            mSuggestionStripView.dismissToolbarControls();
+            mSuggestionStripView.dismissAiAssistant();
+        }
         // Remove pending messages related to update suggestions
         mHandler.cancelUpdateSuggestionStrip();
         // Should do the following in onFinishInputInternal but until JB MR2 it's not called :(
@@ -965,6 +972,7 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void onUpdateSelection(int oldSelStart, int oldSelEnd, int newSelStart, int newSelEnd,
                                   int composingSpanStart, int composingSpanEnd) {
+        if (oldSelStart != newSelStart || oldSelEnd != newSelEnd) mAiEditorRevision++;
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, composingSpanStart, composingSpanEnd);
         if (DebugFlags.DEBUG_ENABLED) {
             Log.i(TAG, "onUpdateSelection: oss=" + oldSelStart + ", ose=" + oldSelEnd
@@ -1248,6 +1256,15 @@ public class LatinIME extends InputMethodService implements
     // This method is public for testability of LatinIME, but also in the future it should
     // completely replace #onCodeInput.
     public void onEvent(@NonNull final Event event) {
+        if (hasSuggestionStripView()
+                && mSuggestionStripView.routeAiConfigurationKey(event.getKeyCode(), event.getCodePoint())) {
+            if (event.getKeyCode() == KeyCode.SHIFT || event.getKeyCode() == KeyCode.SYMBOL_ALPHA
+                    || event.getKeyCode() == KeyCode.SYMBOL || event.getKeyCode() == KeyCode.ALPHA) {
+                mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
+            }
+            return;
+        }
+        mAiEditorRevision++;
         if (KeyCode.VOICE_INPUT == event.getKeyCode()) {
             mRichImm.switchToShortcutIme(this);
         }
@@ -1259,6 +1276,8 @@ public class LatinIME extends InputMethodService implements
 
     public void onTextInput(@Nullable String rawText) {
         if (rawText == null) return;
+        if (hasSuggestionStripView() && mSuggestionStripView.routeAiConfigurationText(rawText)) return;
+        mAiEditorRevision++;
         // TODO: have the keyboard pass the correct key code when we need it.
         Event event = Event.createSoftwareTextEvent(rawText, KeyCode.MULTIPLE_CODE_POINTS, null);
         InputTransaction completeInputTransaction = mInputLogic.onTextInput(mSettings.getCurrent(),
@@ -1268,16 +1287,56 @@ public class LatinIME extends InputMethodService implements
         mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
     }
 
+    private long mAiEditorRevision;
+
+    @Nullable
+    public AiEditor getAiEditor() {
+        final EditorInfo info = getCurrentInputEditorInfo();
+        final SettingsValues settings = mSettings.getCurrent();
+        if (info == null || !isInputViewShown() || !AiPrivacyManager.permits(
+                info.inputType, info.imeOptions, settings.mIncognitoModeEnabled, settings.mIsLocked))
+            return null;
+        final InputConnection connection = getCurrentInputConnection();
+        if (connection == null || !mInputLogic.mConnection.isCursorPositionKnown()) return null;
+        return new AiEditor(connection, info, mInputLogic.mConnection.getExpectedSelectionStart(),
+                mInputLogic.mConnection.getExpectedSelectionEnd(), mAiEditorRevision);
+    }
+
+    public void onAiTextApplied(int start, int end) {
+        mAiEditorRevision++;
+        mHandler.cancelUpdateSuggestionStrip();
+        mInputLogic.onAiTextApplied(start, end);
+        mHandler.postUpdateSuggestionStrip(InputStyle.NONE);
+    }
+
+    public boolean isConfiguringAi() {
+        return hasSuggestionStripView() && mSuggestionStripView.isConfiguringAi();
+    }
+
+    public void onAiConfigurationChanged(boolean configuring) {
+        final MainKeyboardView view = mKeyboardSwitcher.getMainKeyboardView();
+        if (view == null) return;
+        final SettingsValues settings = mSettings.getCurrent();
+        view.setKeyPreviewPopupEnabled(!configuring && settings.mKeyPreviewPopupOn);
+        view.setSlidingKeyInputPreviewEnabled(!configuring && settings.mSlidingKeyInputPreviewEnabled);
+        view.setGestureHandlingEnabledByUser(!configuring && settings.mGestureInputEnabled,
+                settings.mGestureTrailEnabled, settings.mGestureFloatingPreviewTextEnabled);
+    }
+
     public void onStartBatchInput() {
+        if (isConfiguringAi()) return;
+        mAiEditorRevision++;
         mInputLogic.onStartBatchInput(mSettings.getCurrent(), mKeyboardSwitcher, mHandler);
         mGestureConsumer.onGestureStarted(mRichImm.getCurrentSubtypeLocale(), mKeyboardSwitcher.getKeyboard());
     }
 
     public void onUpdateBatchInput(final InputPointers batchPointers) {
+        if (isConfiguringAi()) return;
         mInputLogic.onUpdateBatchInput(batchPointers);
     }
 
     public void onEndBatchInput(final InputPointers batchPointers) {
+        if (isConfiguringAi()) return;
         mInputLogic.onEndBatchInput(batchPointers);
         mGestureConsumer.onGestureCompleted(batchPointers);
     }
@@ -1379,6 +1438,8 @@ public class LatinIME extends InputMethodService implements
     // interface
     @Override
     public void pickSuggestionManually(SuggestedWordInfo suggestionInfo) {
+        if (isConfiguringAi()) return;
+        mAiEditorRevision++;
         InputTransaction completeInputTransaction = mInputLogic.onPickSuggestionManually(
                 mSettings.getCurrent(), suggestionInfo, mKeyboardSwitcher.getKeyboardCapsMode(), mHandler);
         updateStateAfterInputTransaction(completeInputTransaction);
@@ -1516,8 +1577,13 @@ public class LatinIME extends InputMethodService implements
     @Override
     public boolean onKeyDown(final int keyCode, final KeyEvent keyEvent) {
         if (keyCode == KeyEvent.KEYCODE_BACK && hasSuggestionStripView()
-                && mSuggestionStripView.isShowingToolbarPanel())
+                && (mSuggestionStripView.isShowingToolbarPanel() || mSuggestionStripView.isShowingAiAssistant()))
             return true;
+        if (isConfiguringAi()) {
+            mSuggestionStripView.routeAiConfigurationKey(
+                    keyCode == KeyEvent.KEYCODE_DEL ? KeyCode.DELETE : keyCode, keyEvent.getUnicodeChar());
+            return true;
+        }
         if (mKeyboardActionListener.onKeyDown(keyCode, keyEvent))
             return true;
         return super.onKeyDown(keyCode, keyEvent);
@@ -1528,6 +1594,7 @@ public class LatinIME extends InputMethodService implements
         if (keyCode == KeyEvent.KEYCODE_BACK && hasSuggestionStripView()
                 && mSuggestionStripView.handleToolbarBack())
             return true;
+        if (isConfiguringAi()) return true;
         if (mKeyboardActionListener.onKeyUp(keyCode, keyEvent))
             return true;
         return super.onKeyUp(keyCode, keyEvent);

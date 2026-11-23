@@ -87,6 +87,15 @@
                 android:layout_height="match_parent"
                 android:orientation="horizontal" />
         </HorizontalScrollView>
+        <ImageButton
+            android:id="@+id/toolbar_ai_assistant"
+            android:layout_width="44dp"
+            android:layout_height="match_parent"
+            android:scaleType="center"
+            android:src="@drawable/ic_ai_assistant"
+            android:contentDescription="@string/ai_assistant"
+            android:visibility="gone"
+            style="?attr/suggestionWordStyle" />
         <LinearLayout
             android:id="@+id/toolbar_voice_slot"
             android:layout_width="44dp"

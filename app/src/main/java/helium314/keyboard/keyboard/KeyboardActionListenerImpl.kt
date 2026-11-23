@@ -104,6 +104,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
+        if (latinIME.isConfiguringAi()) {
+            latinIME.onEvent(Event.createSoftwareKeypressEvent(primaryCode, metaState, x, y, isKeyRepeat))
+            metaAfterCodeInput(primaryCode)
+            return
+        }
         when (primaryCode) {
             KeyCode.TOGGLE_AUTOCORRECT -> return settings.toggleAutoCorrect()
             KeyCode.TOGGLE_INCOGNITO_MODE -> {

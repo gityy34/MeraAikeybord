@@ -46,6 +46,7 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
     private val pageLabel = TextView(context)
 
     private var browse: Browse? = null
+    private var assistantEntry: AiAssistantEntry? = null
     private var pager: ViewPager2? = null
     private var pageSize = 0
     private var editScroll: ScrollView? = null
@@ -79,13 +80,26 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
         }
     }
 
-    internal fun showTools(tools: List<ToolbarKey>, onTool: (ToolbarKey) -> Unit, onEdit: () -> Unit) {
+    internal fun showTools(
+        tools: List<ToolbarKey>,
+        onTool: (ToolbarKey) -> Unit,
+        assistant: AiAssistantEntry?,
+        onEdit: () -> Unit,
+    ) {
         clearContents()
         browse = Browse(tools, onTool)
+        assistantEntry = assistant
         edit.setOnClickListener { onEdit() }
         hint.isVisible = false
         footer.isVisible = true
         rebuildPages()
+    }
+
+    internal fun updateAssistantEntry(entry: AiAssistantEntry?) {
+        if (browse == null) return
+        val changed = assistantEntry?.pinned != entry?.pinned
+        assistantEntry = entry
+        if (changed) pager?.adapter?.notifyItemChanged(0)
     }
 
     internal fun showEditor(
@@ -130,6 +144,7 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
 
     internal fun clearContents() {
         browse = null
+        assistantEntry = null
         pager?.adapter = null
         pager = null
         editScroll = null
@@ -156,7 +171,13 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
 
             override fun onBindViewHolder(holder: Page, position: Int) {
                 holder.scroll.removeAllViews()
-                holder.scroll.addView(grid(pages[position], current.activate))
+                val tiles = grid(pages[position], current.activate)
+                if (position == 0) assistantEntry?.let { entry ->
+                    tiles.addView(assistantTile(entry), 0, LayoutParams(LayoutParams.MATCH_PARENT, rowHeight).apply {
+                        bottomMargin = gap
+                    })
+                }
+                holder.scroll.addView(tiles)
             }
 
             override fun getItemCount() = pages.size
@@ -184,6 +205,36 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
     }
 
     private class Page(val scroll: ScrollView) : RecyclerView.ViewHolder(scroll)
+
+    private fun assistantTile(entry: AiAssistantEntry) = LinearLayout(context).apply {
+        background = tileBackground()
+        val icon = context.getDrawable(R.drawable.ic_ai_assistant)?.mutate()?.apply {
+            setBounds(0, 0, dp(21), dp(21))
+            setTint(fg)
+        }
+        val label = TextView(context).apply {
+            setText(R.string.ai_assistant)
+            setTextColor(fg)
+            textSize = 14f
+            gravity = Gravity.CENTER_VERTICAL
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            setPaddingRelative(dp(8), 0, dp(4), 0)
+            compoundDrawablePadding = dp(8)
+            setCompoundDrawablesRelative(icon, null, null, null)
+            isFocusable = true
+            setOnClickListener { entry.open() }
+        }
+        addView(label, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+        val pin = footerButton(
+            R.drawable.ic_clipboard_pin_rounded,
+            if (entry.pinned) R.string.ai_unpin_from_toolbar else R.string.ai_pin_to_toolbar,
+        )
+        pin.alpha = if (entry.pinned) 1f else 0.68f
+        pin.isSelected = entry.pinned
+        pin.setOnClickListener { entry.togglePin() }
+        addView(pin, LayoutParams(dp(48), LayoutParams.MATCH_PARENT))
+    }
 
     private fun grid(
         tools: List<ToolbarKey>,
@@ -256,6 +307,8 @@ class ToolbarToolsPanel(context: Context, attrs: AttributeSet?) : LinearLayout(c
 }
 
 internal data class ToolbarToolDrag(val key: ToolbarKey)
+
+internal data class AiAssistantEntry(val pinned: Boolean, val open: () -> Unit, val togglePin: () -> Unit)
 
 internal val toolbarMoveActions = listOf(-1 to R.string.toolbar_move_earlier, 1 to R.string.toolbar_move_later)
 

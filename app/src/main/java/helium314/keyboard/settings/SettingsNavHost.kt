@@ -18,6 +18,7 @@ import helium314.keyboard.latin.settings.SettingsSubtype.Companion.toSettingsSub
 import helium314.keyboard.latin.settings.getTransitionAnimationScale
 import helium314.keyboard.settings.screens.AboutScreen
 import helium314.keyboard.settings.screens.AdvancedSettingsScreen
+import helium314.keyboard.settings.screens.AiAssistantScreen
 import helium314.keyboard.settings.screens.AppearanceScreen
 import helium314.keyboard.settings.screens.ColorsScreen
 import helium314.keyboard.settings.screens.DebugScreen
@@ -71,6 +72,7 @@ fun SettingsNavHost(
                 onClickTextCorrection = { navController.navigate(SettingsDestination.TextCorrection) },
                 onClickPreferences = { navController.navigate(SettingsDestination.Preferences) },
                 onClickToolbar = { navController.navigate(SettingsDestination.Toolbar) },
+                onClickAiAssistant = { navController.navigate(SettingsDestination.AiAssistant) },
                 onClickGestureTyping = { navController.navigate(SettingsDestination.GestureTyping) },
                 onClickDataGathering = { navController.navigate(SettingsDestination.DataGathering) },
                 onClickAdvanced = { navController.navigate(SettingsDestination.Advanced) },
@@ -92,6 +94,9 @@ fun SettingsNavHost(
         }
         composable(SettingsDestination.Toolbar) {
             ToolbarScreen(onClickBack = ::goBack)
+        }
+        composable(SettingsDestination.AiAssistant) {
+            AiAssistantScreen(onClickBack = ::goBack)
         }
         composable(SettingsDestination.GestureTyping) {
             GestureTypingScreen(onClickBack = ::goBack)
@@ -150,6 +155,7 @@ object SettingsDestination {
     const val TextCorrection = "text_correction"
     const val Preferences = "preferences"
     const val Toolbar = "toolbar"
+    const val AiAssistant = "ai_assistant"
     const val GestureTyping = "gesture_typing"
     const val DataGathering = "data_gathering" // remove when data gathering phase is done (end of 2026 latest)
     const val DataReview = "data_review" // remove when data gathering phase is done (end of 2026 latest)
