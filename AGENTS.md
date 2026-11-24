@@ -417,3 +417,23 @@ OpenRouter tests cover saved settings, the preset, credential clearing when
 leaving the form, the exact probe, Bearer headers, error mapping, and chat
 responses. The tests use a fake HTTPS connection. A live test on an Android
 device with the owner's key remains pending. The v8 APK predates this fix.
+
+## OpenRouter Debug APK revision 9
+
+On 2026-11-24 the owner approved a Debug APK. GitHub Actions run
+[45321794668](https://github.com/gityy34/MeraAikeybord/actions/runs/45321794668)
+built product commit [659f4016](https://github.com/gityy34/MeraAikeybord/commit/659f401651e237c19b26b7a4cefdcd8502a482d4).
+The file is `HeliBoard_4.3-beta1-v9-debug.apk`, version code `4307`,
+27,476,752 bytes. [Download the artifact](https://github.com/gityy34/MeraAikeybord/actions/runs/45321794668/artifacts/14887418699).
+The APK SHA-256 is
+`3f26d7a601da346e520c1f31b6365b0fe4c6cbb4850a54b941504d60dbab6dd7`.
+
+The build verified archive integrity, alignment, v1 and v2 signatures,
+package metadata, the HTTPS-only manifest setting, the OpenRouter preset
+resource, and the packaged Urdu layout. The device job matched the APK hash,
+installed the artifact on Android 11 (API 30), and selected the keyboard.
+A live OpenRouter request with the owner's key has not been tested.
+
+The v9 Debug certificate differs from v8. Back up settings before uninstalling
+v8, then install v9, restore settings, and enter the API key again. The next
+approved APK revision is v10 with version code 4308.
