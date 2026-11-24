@@ -28,6 +28,8 @@
     <string name="ai_auth_header">X-API-Key header</string>
     <string name="ai_key">API key</string>
     <string name="ai_key_hint">Leave blank to keep the key for this endpoint</string>
+    <string name="ai_key_saved_hint">Key saved securely. Leave blank to keep it.</string>
+    <string name="ai_use_openrouter">Use OpenRouter settings</string>
     <string name="ai_timeout">Timeout in seconds (3–60)</string>
     <string name="ai_maximum">Maximum text length (1–8000)</string>
     <string name="ai_selected_only">Use selected text only</string>
@@ -36,6 +38,7 @@
     <string name="ai_save_api">Save API settings</string>
     <string name="ai_api_saved">Settings saved. Test the connection to check the provider.</string>
     <string name="ai_test_connection">Test Connection</string>
+    <string name="ai_save_before_test">Save the current settings before testing the connection.</string>
     <string name="ai_clear_history">Clear Local AI History</string>
     <string name="ai_history_cleared">Temporary AI results cleared.</string>
     <string name="ai_connecting">Connecting…</string>
@@ -44,8 +47,13 @@
     <string name="ai_timed_out">Request timed out.</string>
     <string name="ai_invalid_response">Invalid or unsafe API response.</string>
     <string name="ai_auth_failed">Authentication failed. Check the API key.</string>
+    <string name="ai_key_required">Enter the API key for this endpoint and save.</string>
     <string name="ai_api_limit">API limit reached.</string>
+    <string name="ai_request_rejected">API rejected the request. Check the endpoint and model.</string>
+    <string name="ai_credits_required">Provider requires available credits. Check the provider account.</string>
+    <string name="ai_model_unavailable">The requested model is unavailable. Check the model or try again later.</string>
     <string name="ai_connection_failed">Connection failed.</string>
+    <string name="ai_settings_storage">API settings could not be saved. Check available storage.</string>
     <string name="ai_credential_storage">Secure key storage is unavailable. Authenticated providers require Android 6 or later.</string>
     <string name="ai_empty_text">Choose a source that contains text.</string>
     <string name="ai_text_too_long">Text exceeds the configured limit. Select a shorter part.</string>

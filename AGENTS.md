@@ -402,3 +402,18 @@ The v8 Debug certificate differs from the v7 Debug certificate. Export a
 keyboard settings backup before uninstalling v7, then install v8 and restore
 the backup. The next newly approved build revision is v9 with version code
 4307.
+
+## OpenRouter compatibility
+
+The exact OpenRouter chat-completions endpoint requires Bearer authentication.
+The settings form offers the official endpoint and `openrouter/free` as an
+explicit preset. Valid endpoint, model and authentication settings persist
+even if the key still needs to be entered. The connection test uses a fixed
+prompt and parses `choices[0].message.content`. Other endpoints use the
+existing custom JSON contract documented in [AI_API.md](docs/AI_API.md).
+
+On 2026-11-23 the approved targeted Debug run passed all 67 tests. The six
+OpenRouter tests cover saved settings, the preset, credential clearing when
+leaving the form, the exact probe, Bearer headers, error mapping, and chat
+responses. The tests use a fake HTTPS connection. A live test on an Android
+device with the owner's key remains pending. The v8 APK predates this fix.

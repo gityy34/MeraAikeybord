@@ -13,6 +13,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.CharacterCodingException
 import java.net.SocketTimeoutException
+import java.net.URL
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.HttpsURLConnection
@@ -23,9 +24,14 @@ internal enum class AiError(@StringRes val message: Int) {
     OFFLINE(R.string.ai_offline),
     TIMED_OUT(R.string.ai_timed_out),
     INVALID_RESPONSE(R.string.ai_invalid_response),
+    KEY_REQUIRED(R.string.ai_key_required),
     AUTHENTICATION(R.string.ai_auth_failed),
     LIMIT(R.string.ai_api_limit),
+    REQUEST_REJECTED(R.string.ai_request_rejected),
+    CREDITS_REQUIRED(R.string.ai_credits_required),
+    MODEL_UNAVAILABLE(R.string.ai_model_unavailable),
     CONNECTION(R.string.ai_connection_failed),
+    SETTINGS_STORAGE(R.string.ai_settings_storage),
     CREDENTIAL_STORAGE(R.string.ai_credential_storage),
     EMPTY(R.string.ai_empty_text),
     TOO_LONG(R.string.ai_text_too_long),
@@ -97,21 +103,25 @@ internal class CustomApiProvider(private val network: AiNetworkManager = AiNetwo
         network.execute(request, config, key)
 }
 
-internal class AiNetworkManager {
-    suspend fun execute(request: AiRequest, config: AiApiConfig, key: String?): AiResponse {
+internal class AiNetworkManager(
+    private val openConnection: (URL) -> HttpsURLConnection = { it.openConnection() as HttpsURLConnection },
+) {
+    suspend fun execute(request: AiRequest, draft: AiApiConfig, key: String?): AiResponse {
+        val config = draft.withRequiredAuthentication()
         val uri = config.uri()
         if (uri == null || !config.isValid()) return AiResponse.Failure(AiError.NOT_CONFIGURED)
         if (request.inputText.length > config.maximumLength) return AiResponse.Failure(AiError.TOO_LONG)
         if (config.authentication != AiAuthentication.NONE && key.isNullOrBlank())
-            return AiResponse.Failure(AiError.AUTHENTICATION)
+            return AiResponse.Failure(AiError.KEY_REQUIRED)
 
+        val openRouter = AiApiConfig.usesOpenRouter(uri)
         val timeout = config.timeoutSeconds * 1000
         return withTimeoutOrNull(timeout.toLong()) {
             suspendCancellableCoroutine { continuation ->
                 val active = AtomicReference<HttpsURLConnection?>()
                 val worker = CoroutineScope(Dispatchers.IO).launch {
                     val response = try {
-                        val connection = uri.toURL().openConnection() as HttpsURLConnection
+                        val connection = openConnection(uri.toURL())
                         active.set(connection)
                         if (!continuation.isActive) return@launch
                         connection.instanceFollowRedirects = false
@@ -120,7 +130,7 @@ internal class AiNetworkManager {
                         connection.readTimeout = timeout
                         connection.requestMethod = "POST"
                         connection.doOutput = true
-                        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        connection.setRequestProperty("Content-Type", "application/json")
                         connection.setRequestProperty("Accept", "application/json")
                         connection.setRequestProperty("Accept-Encoding", "identity")
                         when (config.authentication) {
@@ -128,7 +138,8 @@ internal class AiNetworkManager {
                             AiAuthentication.BEARER -> connection.setRequestProperty("Authorization", "Bearer $key")
                             AiAuthentication.API_KEY_HEADER -> connection.setRequestProperty("X-API-Key", key)
                         }
-                        val bytes = request.json(config.model).encodeToByteArray()
+                        val json = if (openRouter) OpenRouterChat.encode(request, config.model) else request.json(config.model)
+                        val bytes = json.encodeToByteArray()
                         connection.setFixedLengthStreamingMode(bytes.size)
                         connection.outputStream.use { it.write(bytes) }
                         val status = connection.responseCode
@@ -143,7 +154,8 @@ internal class AiNetworkManager {
                                     throw InvalidAiResponse()
                                 output.write(buffer, 0, count)
                             }
-                            AiErrorHandler.parse(output.toByteArray().decodeToString(throwOnInvalidSequence = true), request)
+                            val body = output.toByteArray().decodeToString(throwOnInvalidSequence = true)
+                            if (openRouter) OpenRouterChat.parse(body, request) else AiErrorHandler.parse(body, request)
                         }
                     } catch (exception: Exception) {
                         AiResponse.Failure(AiErrorHandler.exception(exception))
@@ -170,7 +182,10 @@ private class InvalidAiResponse : IOException()
 
 internal object AiErrorHandler {
     fun http(status: Int) = when (status) {
+        400, 422 -> AiError.REQUEST_REJECTED
         401, 403 -> AiError.AUTHENTICATION
+        402 -> AiError.CREDITS_REQUIRED
+        404, 503 -> AiError.MODEL_UNAVAILABLE
         408, 504 -> AiError.TIMED_OUT
         429 -> AiError.LIMIT
         else -> AiError.CONNECTION
@@ -186,15 +201,7 @@ internal object AiErrorHandler {
     fun parse(body: String, request: AiRequest): AiResponse = runCatching {
         val feature = request.feature
         val json = JSONObject(body)
-        if (json.has("error") && !json.isNull("error")) {
-            val code = json.optJSONObject("error")?.optString("code")
-            return AiResponse.Failure(when (code) {
-                "authentication_failed", "invalid_key" -> AiError.AUTHENTICATION
-                "rate_limit", "quota_exceeded" -> AiError.LIMIT
-                "timeout" -> AiError.TIMED_OUT
-                else -> AiError.CONNECTION
-            })
-        }
+        providerError(json)?.let { return AiResponse.Failure(it) }
         require(json.opt("feature") == feature)
         if (feature == "connection_test") {
             require(json.opt("connected") == true)
@@ -219,10 +226,21 @@ internal object AiErrorHandler {
         )
     }.getOrElse { AiResponse.Failure(AiError.INVALID_RESPONSE) }
 
+    fun providerError(json: JSONObject): AiError? {
+        if (json.isNull("error")) return null
+        val code = json.optJSONObject("error")?.optString("code")
+        return when (code) {
+            "authentication_failed", "invalid_key" -> AiError.AUTHENTICATION
+            "rate_limit", "quota_exceeded" -> AiError.LIMIT
+            "timeout" -> AiError.TIMED_OUT
+            else -> code?.toIntOrNull()?.let(::http) ?: AiError.CONNECTION
+        }
+    }
+
     private val languageTag = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,2}")
     private val arabicLetters = Regex("[\\p{IsArabic}&&\\p{L}]")
 
-    private fun isSafeResult(text: String, roman: Boolean) = text.isNotBlank() &&
+    fun isSafeResult(text: String, roman: Boolean) = text.isNotBlank() &&
         text.length <= AiApiConfig.MAX_LENGTH && (!roman || !arabicLetters.containsMatchIn(text)) &&
         text.none { (it.isISOControl() && it !in "\n\r\t") || it in '\u202a'..'\u202e' || it == '\ufffd' }
 }

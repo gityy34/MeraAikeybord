@@ -28,6 +28,8 @@
     <string name="ai_auth_header">اے پی آئی کلید کا ہیڈر</string>
     <string name="ai_key">اے پی آئی کلید</string>
     <string name="ai_key_hint">اس پتے کی محفوظ کلید رکھنے کے لیے خالی چھوڑیں</string>
+    <string name="ai_key_saved_hint">کلید محفوظ ہے۔ اسے رکھنے کے لیے یہ خانہ خالی چھوڑیں۔</string>
+    <string name="ai_use_openrouter">اوپن روٹر کی ترتیبات لگائیں</string>
     <string name="ai_timeout">وقت کی حد سیکنڈ میں (۳ تا ۶۰)</string>
     <string name="ai_maximum">متن کی زیادہ سے زیادہ لمبائی (۱ تا ۸۰۰۰)</string>
     <string name="ai_selected_only">صرف منتخب متن استعمال کریں</string>
@@ -36,6 +38,7 @@
     <string name="ai_save_api">اے پی آئی ترتیبات محفوظ کریں</string>
     <string name="ai_api_saved">ترتیبات محفوظ ہو گئیں۔ فراہم کنندہ کی تصدیق کے لیے کنکشن آزمائیں۔</string>
     <string name="ai_test_connection">کنکشن آزمائیں</string>
+    <string name="ai_save_before_test">کنکشن آزمانے سے پہلے موجودہ ترتیبات محفوظ کریں۔</string>
     <string name="ai_clear_history">مقامی اے آئی ریکارڈ صاف کریں</string>
     <string name="ai_history_cleared">عارضی اے آئی نتائج صاف ہو گئے۔</string>
     <string name="ai_connecting">کنکشن قائم ہو رہا ہے…</string>
@@ -44,8 +47,13 @@
     <string name="ai_timed_out">درخواست کی وقت کی حد ختم ہو گئی۔</string>
     <string name="ai_invalid_response">اے پی آئی کا جواب نامعتبر ہے۔</string>
     <string name="ai_auth_failed">تصدیق ناکام ہوئی۔ اے پی آئی کلید چیک کریں۔</string>
+    <string name="ai_key_required">اس پتے کی اے پی آئی کلید درج کر کے محفوظ کریں۔</string>
     <string name="ai_api_limit">اے پی آئی کی حد پوری ہو گئی۔</string>
+    <string name="ai_request_rejected">اے پی آئی نے درخواست مسترد کی۔ پتا اور ماڈل چیک کریں۔</string>
+    <string name="ai_credits_required">فراہم کنندہ کے اکاؤنٹ میں دستیاب کریڈٹ درکار ہے۔</string>
+    <string name="ai_model_unavailable">مطلوبہ ماڈل دستیاب نہیں۔ ماڈل چیک کریں یا کچھ دیر بعد دوبارہ کوشش کریں۔</string>
     <string name="ai_connection_failed">کنکشن ناکام ہوا۔</string>
+    <string name="ai_settings_storage">اے پی آئی کی ترتیبات محفوظ نہیں ہو سکیں۔ دستیاب اسٹوریج چیک کریں۔</string>
     <string name="ai_credential_storage">محفوظ کلید کی ذخیرہ کاری دستیاب نہیں۔ کلید والے فراہم کنندہ کے لیے اینڈرائیڈ ۶ یا اس کے بعد کا ورژن درکار ہے۔</string>
     <string name="ai_empty_text">ایسا دائرہ منتخب کریں جس میں متن ہو۔</string>
     <string name="ai_text_too_long">متن مقررہ حد سے زیادہ ہے۔ چھوٹا حصہ منتخب کریں۔</string>

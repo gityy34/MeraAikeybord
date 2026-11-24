@@ -39,8 +39,19 @@ internal data class AiApiConfig(
     fun isValid() = uri() != null && model.isNotBlank() && model.length <= 120 &&
         timeoutSeconds in 3..60 && maximumLength in 1..MAX_LENGTH
 
+    fun isOpenRouter() = usesOpenRouter(uri())
+
+    fun withRequiredAuthentication() = if (isOpenRouter() && authentication != AiAuthentication.BEARER)
+        copy(authentication = AiAuthentication.BEARER) else this
+
     companion object {
         const val MAX_LENGTH = 8_000
+        const val OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+        const val OPENROUTER_MODEL = "openrouter/free"
+
+        fun usesOpenRouter(uri: URI?) = uri != null &&
+            uri.host.equals("openrouter.ai", ignoreCase = true) &&
+            (uri.port == -1 || uri.port == 443) && uri.rawPath == "/api/v1/chat/completions"
     }
 }
 
@@ -56,33 +67,35 @@ internal class AiApiSettings(context: Context) {
         timeoutSeconds = prefs.getInt(TIMEOUT, 20),
         maximumLength = prefs.getInt(LIMIT, 2_000),
         selectedOnly = prefs.getBoolean(SELECTED, true),
-    )
+    ).withRequiredAuthentication()
 
-    fun key(config: AiApiConfig): String? = synchronized(credentialLock) { credentials.read(config) }
+    fun key(config: AiApiConfig): String? = synchronized(credentialLock) {
+        credentials.read(config.withRequiredAuthentication())
+    }
 
-    fun save(config: AiApiConfig, newKey: String): AiError? = synchronized(credentialLock) {
+    fun save(draft: AiApiConfig, newKey: String): AiError? = synchronized(credentialLock) {
+        val config = draft.withRequiredAuthentication()
         if (!config.isValid()) return AiError.NOT_CONFIGURED
-        if (config.authentication == AiAuthentication.NONE) {
-            if (!credentials.clear()) return AiError.CREDENTIAL_STORAGE
-        } else {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return AiError.CREDENTIAL_STORAGE
-            if (newKey.isBlank()) {
-                if (credentials.read(config) == null) return AiError.AUTHENTICATION
-            } else {
-                if (newKey.length > 4096 || newKey.any { it.isISOControl() || it.code > 126 })
-                    return AiError.AUTHENTICATION
-                if (!credentials.write(config, newKey)) return AiError.CREDENTIAL_STORAGE
-            }
+        // An unavailable API key must not discard the endpoint, model, or authentication choice.
+        val saved = prefs.edit()
+            .putString(ENDPOINT, config.endpoint)
+            .putString(MODEL, config.model)
+            .putString(AUTH, config.authentication.name)
+            .putInt(TIMEOUT, config.timeoutSeconds)
+            .putInt(LIMIT, config.maximumLength)
+            .putBoolean(SELECTED, config.selectedOnly)
+            .commit()
+        if (!saved) return AiError.SETTINGS_STORAGE
+
+        when {
+            config.authentication == AiAuthentication.NONE ->
+                if (credentials.clear()) null else AiError.CREDENTIAL_STORAGE
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M -> AiError.CREDENTIAL_STORAGE
+            newKey.isBlank() -> if (credentials.read(config) == null) AiError.KEY_REQUIRED else null
+            newKey.length > 4096 || newKey.any { it.code !in 33..126 } -> AiError.AUTHENTICATION
+            !credentials.write(config, newKey) -> AiError.CREDENTIAL_STORAGE
+            else -> null
         }
-        prefs.edit {
-            putString(ENDPOINT, config.endpoint)
-            putString(MODEL, config.model)
-            putString(AUTH, config.authentication.name)
-            putInt(TIMEOUT, config.timeoutSeconds)
-            putInt(LIMIT, config.maximumLength)
-            putBoolean(SELECTED, config.selectedOnly)
-        }
-        return null
     }
 
     fun reset(): Boolean = synchronized(credentialLock) {

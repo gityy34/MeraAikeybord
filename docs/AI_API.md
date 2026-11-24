@@ -4,11 +4,28 @@
 
 Enable AI Assistant, open it from Tools or its pinned toolbar icon, and open **API and privacy settings** in the keyboard panel. Enter the HTTPS endpoint and model, choose an authentication method, then save. Settings are also available from the app’s existing AI Assistant settings.
 
-The endpoint can use no authentication, an `Authorization: Bearer` token, or an `X-API-Key` header. Android 6 and newer can store keys with Android Keystore AES-GCM. Android 5 and 5.1 support endpoints without authentication. The encrypted file is excluded from Android backups and bound to the exact endpoint and authentication method. The app only reads or writes keys while the user and device are unlocked. The normal keyboard works offline even when the AI backend is unreachable.
+Custom endpoints can use no authentication, an `Authorization: Bearer` token, or an `X-API-Key` header. Android 6 and newer can store keys with Android Keystore AES-GCM. Android 5 and 5.1 support endpoints without authentication. The encrypted file is excluded from Android backups and bound to the exact endpoint and authentication method. The app only reads or writes keys while the user and device are unlocked. The normal keyboard works offline even when the AI backend is unreachable.
 
-**Test Connection** sends a probe with empty `inputText`. It verifies that the endpoint accepts the request and understands this protocol. It does not verify model quality or transformation capabilities. No test or background request is triggered by opening the keyboard or saving settings.
+Save keeps a valid endpoint, model and authentication setting even if the key needs to be entered again. After saving a key, the masked entry field clears and displays a saved-key hint. **Test Connection** checks the saved configuration and requires saving any edits first. Opening the keyboard or saving settings does not send a request.
 
-## Backend contract
+## OpenRouter
+
+Choose **Use OpenRouter settings**, paste the API key itself, select **Save API settings**, then select **Test Connection**. The preset uses `https://openrouter.ai/api/v1/chat/completions` and `openrouter/free`. The app requires Bearer authentication for this endpoint. A model explicitly entered in the form is saved as entered.
+
+The connection test sends a JSON POST with `Authorization: Bearer <API_KEY>` and `Content-Type: application/json`. For the preset model, the request is
+
+```json
+{
+  "model": "openrouter/free",
+  "messages": [{"role": "user", "content": "Reply with only: OK"}],
+  "temperature": 0,
+  "max_completion_tokens": 16
+}
+```
+
+The app expects `OK` in `choices[0].message.content`. The probe sends no editor text. Transformations send the chosen source text as the user message and use the returned content for the preview. The app only applies the result after confirmation. [OpenRouter chat completion reference](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)
+
+## Other custom endpoints
 
 The custom provider sends a JSON POST to the configured HTTPS URL. A provider-specific API needs an adapter if it uses a different schema. The keyboard follows standard Android certificate validation and rejects redirects. An example transformation request is
 
@@ -42,7 +59,7 @@ Grammar should preserve meaning and tone, rewrite should preserve meaning, and t
 }
 ```
 
-For a connection test, return `{"feature":"connection_test","connected":true}`. On failure, use HTTP 401 or 403 for invalid credentials, 429 for quotas, or 408 or 504 for timeout. The provider also recognizes structured JSON errors with an `error.code` of `invalid_key`, `authentication_failed`, `rate_limit`, `quota_exceeded`, or `timeout`. Server error strings are never shown or logged by the app.
+For a connection test, the app sends an empty `inputText` and expects `{"feature":"connection_test","connected":true}`. On failure, use HTTP 401 or 403 for invalid credentials, 429 for quotas, or 408 or 504 for timeout. The provider also recognizes structured JSON errors with an `error.code` of `invalid_key`, `authentication_failed`, `rate_limit`, `quota_exceeded`, or `timeout`. Server error strings are never shown or logged by the app.
 
 ## Editor and privacy boundaries
 

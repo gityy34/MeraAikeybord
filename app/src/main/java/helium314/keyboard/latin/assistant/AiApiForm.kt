@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
+import androidx.core.widget.doAfterTextChanged
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.dpToPx
@@ -34,6 +35,7 @@ internal class AiApiForm(
     private var pending: Job? = null
     private var active: EditText? = null
     private val status = TextView(context)
+    private val key: EditText
 
     init {
         orientation = VERTICAL
@@ -48,9 +50,24 @@ internal class AiApiForm(
         val authentication = addAiChoice(R.string.ai_authentication, listOf(
             R.string.ai_auth_none, R.string.ai_auth_bearer, R.string.ai_auth_header,
         )).apply { setSelection(saved.authentication.ordinal) }
-        val key = field(R.string.ai_key, "",
+        key = field(R.string.ai_key, "",
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, 4096)
         key.setHint(R.string.ai_key_hint)
+        fun updateAuthentication() {
+            val openRouter = AiApiConfig(endpoint = endpoint.text.toString().trim()).isOpenRouter()
+            if (openRouter) authentication.setSelection(AiAuthentication.BEARER.ordinal)
+            authentication.setSelectable(!openRouter)
+        }
+        endpoint.doAfterTextChanged {
+            updateAuthentication()
+            key.setHint(R.string.ai_key_hint)
+        }
+        updateAuthentication()
+        addAiButton(R.string.ai_use_openrouter) {
+            if (endpoint.text.toString().trim() != AiApiConfig.OPENROUTER_ENDPOINT) key.text.clear()
+            endpoint.setText(AiApiConfig.OPENROUTER_ENDPOINT)
+            model.setText(AiApiConfig.OPENROUTER_MODEL)
+        }
         val timeout = field(R.string.ai_timeout, saved.timeoutSeconds.toString(), InputType.TYPE_CLASS_NUMBER, 2)
         val limit = field(R.string.ai_maximum, saved.maximumLength.toString(), InputType.TYPE_CLASS_NUMBER, 4)
         val selected = CheckBox(context).apply {
@@ -64,30 +81,41 @@ internal class AiApiForm(
             isEnabled = false
         })
         label(R.string.ai_connection_status)
-        status.setText(R.string.ai_api_disconnected)
+        status.setText(if (saved.isValid()) R.string.ai_api_saved else R.string.ai_api_disconnected)
         ViewCompat.setAccessibilityLiveRegion(status, View.ACCESSIBILITY_LIVE_REGION_POLITE)
         addView(status)
+        fun readForm() = AiApiConfig(
+            endpoint.text.toString().trim(), model.text.toString().trim(),
+            AiAuthentication.entries[authentication.selectedItemPosition],
+            timeout.text.toString().toIntOrNull() ?: 0,
+            limit.text.toString().toIntOrNull() ?: 0, selected.isChecked,
+        ).withRequiredAuthentication()
+
         addAiButton(R.string.ai_save_api) {
             if (pending?.isActive == true) return@addAiButton
-            val config = AiApiConfig(
-                endpoint.text.toString().trim(), model.text.toString().trim(),
-                AiAuthentication.entries[authentication.selectedItemPosition],
-                timeout.text.toString().toIntOrNull() ?: 0,
-                limit.text.toString().toIntOrNull() ?: 0, selected.isChecked,
-            )
+            val config = readForm()
             val newKey = key.text.toString().trim()
             pending = scope.launch {
                 val problem = withContext(Dispatchers.IO) { api.save(config, newKey) }
                 status.setText(problem?.message ?: R.string.ai_api_saved)
-                if (problem == null) key.text.clear()
+                if (problem == null && readForm() == config) {
+                    if (key.text.toString().trim() == newKey) key.text.clear()
+                    key.setHint(if (config.authentication == AiAuthentication.NONE)
+                        R.string.ai_key_hint else R.string.ai_key_saved_hint)
+                }
             }
         }
         addAiButton(R.string.ai_test_connection) {
             if (pending?.isActive == true) return@addAiButton
+            val config = api.read()
+            if (readForm() != config || key.text.isNotBlank() && config.authentication != AiAuthentication.NONE) {
+                status.setText(R.string.ai_save_before_test)
+                return@addAiButton
+            }
             status.setText(R.string.ai_connecting)
             pending = scope.launch {
-                val config = api.read()
-                val secret = withContext(Dispatchers.IO) { api.key(config) }
+                val secret = if (config.authentication == AiAuthentication.NONE) null
+                    else withContext(Dispatchers.IO) { api.key(config) }
                 val response = CustomApiProvider().request(AiRequest(null, ""), config, secret)
                 status.setText(when (response) {
                     AiResponse.Connected -> R.string.ai_connected
@@ -135,7 +163,7 @@ internal class AiApiForm(
         pending?.cancel()
         active = null
         // Do not retain credential text in an abandoned form.
-        for (index in 0 until childCount) (getChildAt(index) as? EditText)?.text?.clear()
+        key.text.clear()
     }
 
     private fun label(@StringRes title: Int) {
@@ -199,5 +227,10 @@ internal class AiChoice(context: Context, @StringRes label: Int, private val tit
         selectedItemPosition = index
         selection.setText(titles[index])
         choices.visibility = GONE
+    }
+
+    fun setSelectable(selectable: Boolean) {
+        selection.isEnabled = selectable
+        if (!selectable) choices.visibility = GONE
     }
 }
